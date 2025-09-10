@@ -4,11 +4,45 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="22ae9ce5-5b96-476a-bacb-b83d0905eaac" name="Changes" comment="python project preempting" />
+    <list default="true" id="22ae9ce5-5b96-476a-bacb-b83d0905eaac" name="Changes" comment="python project preempting">
+      <change afterPath="$PROJECT_DIR$/.env.development" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Dockerfile" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/alembic.ini" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/alembic/env.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/alembic/versions/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/api/health.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/core/config.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/core/deps.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/core/logging.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/core/security.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/db/base.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/db/models/user.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/db/session.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/infra/redis/client.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/repositories/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/schemas/user.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/services/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/api/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/repositories/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/services/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Dockerfile" />
+        <option value="Python Script" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
@@ -18,6 +52,18 @@
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "caprixj"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/poliukhovych/cubic-backend/",
+    "accountId": "43f25449-7f08-4328-8caf-9c44484be372"
+  }
+}]]></component>
   <component name="MavenImportPreferences">
     <option name="generalSettings">
       <MavenGeneralSettings>
@@ -39,11 +85,19 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "migrate/python",
+    "git-widget-placeholder": "#2 on migrate/python",
     "ignore.virus.scanning.warn.message": "true",
-    "kotlin-language-version-configured": "true"
+    "kotlin-language-version-configured": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.tslint": "(autodetect)"
   }
 }]]></component>
+  <component name="RunManager">
+    <configuration default="true" type="CaddyfileRunConfiguration" factoryName="CaddyfileRunConfiguration" caddy-exec="caddy" sub-command="run" caddyfile="Caddyfile" working-dir="$PROJECT_DIR$" env-files="">
+      <env-vars />
+      <method v="2" />
+    </configuration>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -69,6 +123,9 @@
     </task>
     <option name="localTasksCounter" value="2" />
     <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="python project preempting" />
