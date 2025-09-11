@@ -1,12 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict, Any
 from app.services.group_service import GroupService
+from app.core.deps import get_group_service
 
 router = APIRouter()
-
-
-def get_group_service() -> GroupService:
-    return GroupService()
 
 
 @router.get("/")
