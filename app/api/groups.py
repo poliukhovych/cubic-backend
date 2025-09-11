@@ -35,3 +35,23 @@ async def get_groups_by_teacher_id(
 ) -> List[Dict[str, Any]]:
     groups = await group_service.get_groups_by_teacher_id(teacher_id)
     return groups
+
+
+@router.post("/")
+async def create_group(
+    group_data: Dict[str, Any],
+    group_service: GroupService = Depends(get_group_service)
+) -> Dict[str, Any]:
+    new_group = await group_service.create_group(group_data)
+    return new_group
+
+
+@router.delete("/{group_id}")
+async def delete_group(
+    group_id: str,
+    group_service: GroupService = Depends(get_group_service)
+) -> Dict[str, str]:
+    success = await group_service.delete_group(group_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Група не знайдена")
+    return {"message": "Група успішно видалена"}

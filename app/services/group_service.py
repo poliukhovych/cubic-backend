@@ -1,4 +1,5 @@
 from typing import List, Optional, Dict, Any
+import uuid
 
 
 class GroupService:
@@ -65,3 +66,22 @@ class GroupService:
             if group["id"] == group_id:
                 return group
         return None
+
+    async def create_group(self, group_data: Dict[str, Any]) -> Dict[str, Any]:
+        new_group = {
+            "id": str(uuid.uuid4()),
+            "name": group_data.get("name"),
+            "subgroup": group_data.get("subgroup"),
+            "description": group_data.get("description"),
+            "year": group_data.get("year"),
+            "faculty": group_data.get("faculty")
+        }
+        self._groups.append(new_group)
+        return new_group
+
+    async def delete_group(self, group_id: str) -> bool:
+        for i, group in enumerate(self._groups):
+            if group["id"] == group_id:
+                del self._groups[i]
+                return True
+        return False

@@ -1,4 +1,5 @@
 from typing import List, Optional, Dict, Any
+import uuid
 
 
 class CourseService:
@@ -66,3 +67,21 @@ class CourseService:
             if course["id"] == course_id:
                 return course
         return None
+
+    async def create_course(self, course_data: Dict[str, Any]) -> Dict[str, Any]:
+        new_course = {
+            "id": str(uuid.uuid4()),
+            "name": course_data.get("name"),
+            "description": course_data.get("description"),
+            "credits": course_data.get("credits"),
+            "teacher_id": course_data.get("teacher_id")
+        }
+        self._courses.append(new_course)
+        return new_course
+
+    async def delete_course(self, course_id: str) -> bool:
+        for i, course in enumerate(self._courses):
+            if course["id"] == course_id:
+                del self._courses[i]
+                return True
+        return False

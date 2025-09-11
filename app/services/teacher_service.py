@@ -1,4 +1,5 @@
 from typing import List, Optional, Dict, Any
+import uuid
 
 
 class TeacherService:
@@ -42,3 +43,21 @@ class TeacherService:
             if teacher["id"] == teacher_id:
                 return teacher
         return None
+
+    async def create_teacher(self, teacher_data: Dict[str, Any]) -> Dict[str, Any]:
+        new_teacher = {
+            "id": str(uuid.uuid4()),
+            "name": teacher_data.get("name"),
+            "email": teacher_data.get("email"),
+            "department": teacher_data.get("department"),
+            "bio": teacher_data.get("bio", "")
+        }
+        self._teachers.append(new_teacher)
+        return new_teacher
+
+    async def delete_teacher(self, teacher_id: str) -> bool:
+        for i, teacher in enumerate(self._teachers):
+            if teacher["id"] == teacher_id:
+                del self._teachers[i]
+                return True
+        return False
