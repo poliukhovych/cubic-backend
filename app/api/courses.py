@@ -21,7 +21,7 @@ async def get_course_by_id(
 ) -> Dict[str, Any]:
     course = await course_service.get_course_by_id(course_id)
     if not course:
-        raise HTTPException(status_code=404, detail="Курс не знайдений")
+        raise HTTPException(status_code=404, detail="Course not found")
     return course
 
 
@@ -50,5 +50,5 @@ async def delete_course(
 ) -> Dict[str, str]:
     success = await course_service.delete_course(course_id)
     if not success:
-        raise HTTPException(status_code=404, detail="Курс не знайдений")
-    return {"message": "Курс успішно видалений"}
+        raise HTTPException(status_code=404, detail="Course not found")
+    return {"message": "Course was deleted successfully"}
