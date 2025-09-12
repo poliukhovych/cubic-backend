@@ -23,7 +23,7 @@ async def get_teacher_by_id(
 ) -> Dict[str, Any]:
     teacher = await teacher_service.get_teacher_by_id(teacher_id)
     if not teacher:
-        raise HTTPException(status_code=404, detail="Викладач не знайдений")
+        raise HTTPException(status_code=404, detail="Teacher not found")
     return teacher
 
 
@@ -61,5 +61,5 @@ async def delete_teacher(
 ) -> Dict[str, str]:
     success = await teacher_service.delete_teacher(teacher_id)
     if not success:
-        raise HTTPException(status_code=404, detail="Викладач не знайдений")
-    return {"message": "Викладач успішно видалений"}
+        raise HTTPException(status_code=404, detail="Teacher not found")
+    return {"message": "Teacher was deleted successfully"}

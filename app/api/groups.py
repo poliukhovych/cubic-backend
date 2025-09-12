@@ -21,7 +21,7 @@ async def get_group_by_id(
 ) -> Dict[str, Any]:
     group = await group_service.get_group_by_id(group_id)
     if not group:
-        raise HTTPException(status_code=404, detail="Група не знайдена")
+        raise HTTPException(status_code=404, detail="Group not found")
     return group
 
 
@@ -50,5 +50,5 @@ async def delete_group(
 ) -> Dict[str, str]:
     success = await group_service.delete_group(group_id)
     if not success:
-        raise HTTPException(status_code=404, detail="Група не знайдена")
-    return {"message": "Група успішно видалена"}
+        raise HTTPException(status_code=404, detail="Group not found")
+    return {"message": "Group was deleted successfully"}
