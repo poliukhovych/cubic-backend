@@ -5,31 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="22ae9ce5-5b96-476a-bacb-b83d0905eaac" name="Changes" comment="python project preempting">
-      <change afterPath="$PROJECT_DIR$/.env.development" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Dockerfile" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/alembic.ini" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/alembic/env.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/alembic/versions/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/api/health.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/core/config.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/core/deps.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/core/logging.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/core/security.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/db/base.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/db/models/user.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/db/session.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/infra/redis/client.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/repositories/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/schemas/user.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/services/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/api/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/repositories/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/services/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/db/models/base.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/repositories/students.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/db/base.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/db/models/student.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/db/session.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/db/session.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -52,18 +34,18 @@
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "caprixj"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;caprixj&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/poliukhovych/cubic-backend/",
-    "accountId": "43f25449-7f08-4328-8caf-9c44484be372"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/poliukhovych/cubic-backend/&quot;,
+    &quot;accountId&quot;: &quot;43f25449-7f08-4328-8caf-9c44484be372&quot;
   }
-}]]></component>
+}</component>
   <component name="MavenImportPreferences">
     <option name="generalSettings">
       <MavenGeneralSettings>
@@ -85,13 +67,23 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "#2 on migrate/python",
+    "git-widget-placeholder": "feature/repository",
     "ignore.virus.scanning.warn.message": "true",
     "kotlin-language-version-configured": "true",
+    "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.tslint": "(autodetect)"
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
+    "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\capri\PycharmProjects\cubic-backend\app\db\models" />
+    </key>
+  </component>
   <component name="RunManager">
     <configuration default="true" type="CaddyfileRunConfiguration" factoryName="CaddyfileRunConfiguration" caddy-exec="caddy" sub-command="run" caddyfile="Caddyfile" working-dir="$PROJECT_DIR$" env-files="">
       <env-vars />
@@ -101,7 +93,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-jdk-9823dce3aa75-bf35d07a577b-intellij.indexing.shared.core-IU-252.25557.131" />
+        <option value="bundled-js-predefined-d6986cc7102b-09060db00ec0-JavaScript-PY-251.26927.90" />
+        <option value="bundled-python-sdk-41e8cd69c857-64d779b69b7a-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-251.26927.90" />
       </set>
     </attachedChunks>
   </component>
@@ -112,6 +105,8 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1757343203140</updated>
+      <workItem from="1757621199611" duration="134000" />
+      <workItem from="1757660932933" duration="2158000" />
     </task>
     <task id="LOCAL-00001" summary="python project preempting">
       <option name="closed" value="true" />
