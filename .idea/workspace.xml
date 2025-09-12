@@ -5,16 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="22ae9ce5-5b96-476a-bacb-b83d0905eaac" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/app/schemas/student.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.env.development" beforeDir="false" afterPath="$PROJECT_DIR$/.env.development" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/api/courses.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/courses.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/api/groups.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/groups.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/api/teachers.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/teachers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/core/deps.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/core/deps.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/db/session.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/db/session.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -114,7 +105,7 @@
       <updated>1757343203140</updated>
       <workItem from="1757621199611" duration="134000" />
       <workItem from="1757660932933" duration="5519000" />
-      <workItem from="1757701250966" duration="2834000" />
+      <workItem from="1757701250966" duration="4162000" />
     </task>
     <task id="LOCAL-00001" summary="python project preempting">
       <option name="closed" value="true" />
