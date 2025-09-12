@@ -4,14 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="22ae9ce5-5b96-476a-bacb-b83d0905eaac" name="Changes" comment="python project preempting">
-      <change afterPath="$PROJECT_DIR$/app/db/models/base.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/repositories/students.py" afterDir="false" />
+    <list default="true" id="22ae9ce5-5b96-476a-bacb-b83d0905eaac" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/app/schemas/student.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.env.development" beforeDir="false" afterPath="$PROJECT_DIR$/.env.development" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/db/base.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/db/models/student.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/courses.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/courses.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/groups.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/groups.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/teachers.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/teachers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/core/deps.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/core/deps.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/db/session.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/db/session.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -53,6 +56,9 @@
       </MavenGeneralSettings>
     </option>
   </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 0
 }</component>
@@ -75,7 +81,8 @@
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
+    "run.code.analysis.last.selected.profile": "aDefault",
+    "settings.editor.selected.configurable": "Errors",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
@@ -106,7 +113,8 @@
       <option name="presentableId" value="Default" />
       <updated>1757343203140</updated>
       <workItem from="1757621199611" duration="134000" />
-      <workItem from="1757660932933" duration="2158000" />
+      <workItem from="1757660932933" duration="5519000" />
+      <workItem from="1757701250966" duration="2834000" />
     </task>
     <task id="LOCAL-00001" summary="python project preempting">
       <option name="closed" value="true" />
