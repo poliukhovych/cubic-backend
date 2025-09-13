@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.api import health, teachers, groups, courses
 from app.db.models.base import Base
@@ -14,6 +15,7 @@ from app.services.group_service import GroupService
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     async with engine.begin() as conn:
+        await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "citext";'))
         await conn.run_sync(Base.metadata.create_all)
 
     # application.state is added dynamically so the type check can be safely ignored

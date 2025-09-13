@@ -5,7 +5,25 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="22ae9ce5-5b96-476a-bacb-b83d0905eaac" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/app/db/models/catalog/group.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/db/models/catalog/lesson.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/db/models/catalog/room.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/db/models/joins/group_course.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/db/models/joins/student_group.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/db/models/joins/teacher_course.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/db/models/people/admin.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/db/models/people/teacher.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/db/models/people/user.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/db/models/scheduling/assignment.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/db/models/scheduling/schedule.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/db/models/scheduling/subgroup_contraints.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/db/models/scheduling/timeslot.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/db/models/student.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/db/models/people/student.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/db/models/user.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/db/models/catalog/course.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/repositories/students.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/repositories/students.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -48,7 +66,7 @@
     </option>
   </component>
   <component name="ProblemsViewState">
-    <option name="selectedTabId" value="CurrentFile" />
+    <option name="selectedTabId" value="DEPENDENCY_CHECKER_PROBLEMS_TAB" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 0
@@ -64,9 +82,10 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "feature/repository",
+    "git-widget-placeholder": "feature/finishingRepo",
     "ignore.virus.scanning.warn.message": "true",
     "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "C:/Users/capri/PycharmProjects/cubic-backend/app/db/models/people",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -78,7 +97,14 @@
   }
 }]]></component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\capri\PycharmProjects\cubic-backend\app\db\models\people" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\capri\PycharmProjects\cubic-backend\app\db\models\catalog" />
+      <recent name="C:\Users\capri\PycharmProjects\cubic-backend\app\db\models\scheduling" />
+      <recent name="C:\Users\capri\PycharmProjects\cubic-backend\app\db\models\people" />
+      <recent name="C:\Users\capri\PycharmProjects\cubic-backend\app\db\models\joins" />
       <recent name="C:\Users\capri\PycharmProjects\cubic-backend\app\db\models" />
     </key>
   </component>
@@ -105,7 +131,9 @@
       <updated>1757343203140</updated>
       <workItem from="1757621199611" duration="134000" />
       <workItem from="1757660932933" duration="5519000" />
-      <workItem from="1757701250966" duration="4162000" />
+      <workItem from="1757701250966" duration="5152000" />
+      <workItem from="1757767160237" duration="753000" />
+      <workItem from="1757792557037" duration="3213000" />
     </task>
     <task id="LOCAL-00001" summary="python project preempting">
       <option name="closed" value="true" />
