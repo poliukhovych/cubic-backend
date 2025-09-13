@@ -1,6 +1,6 @@
 from fastapi import Request
+from typing import AsyncGenerator
 
-from app.db.session import async_session_maker
 from app.services.course_service import CourseService
 from app.services.teacher_service import TeacherService
 from app.services.group_service import GroupService
@@ -18,6 +18,7 @@ def get_group_service(request: Request) -> GroupService:
     return request.app.state.group_service
 
 
-async def get_session():
-    async with async_session_maker() as session:
-        yield session
+# Заглушка для get_db - поки що не використовується
+async def get_db() -> AsyncGenerator[None, None]:
+    """Заглушка для get_db - поки що не використовується"""
+    yield None

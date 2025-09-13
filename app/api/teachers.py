@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import List, Dict, Any
 from app.services.teacher_service import TeacherService
 from app.services.course_service import CourseService
@@ -10,8 +10,13 @@ router = APIRouter()
 
 @router.get("/")
 async def get_all_teachers(
+    request: Request,
     teacher_service: TeacherService = Depends(get_teacher_service)
 ) -> List[Dict[str, Any]]:
+    user = getattr(request.state, 'user', None)
+    if user:
+        print(f"Request from user: {user['email']} with role: {user['role']}")
+    
     teachers = await teacher_service.get_all_teachers()
     return teachers
 

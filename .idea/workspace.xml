@@ -5,7 +5,17 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="22ae9ce5-5b96-476a-bacb-b83d0905eaac" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/teachers.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/teachers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/core/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/core/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/core/deps.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/core/deps.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/db/models/user.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/db/models/user.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/db/session.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/db/session.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/schemas/student.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/schemas/student.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/course_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/course_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/group_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/group_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/teacher_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/teacher_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -34,12 +44,12 @@
     &quot;assignee&quot;: &quot;caprixj&quot;
   }
 }</component>
-  <component name="GithubPullRequestsUISettings">{
-  &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;https://github.com/poliukhovych/cubic-backend/&quot;,
-    &quot;accountId&quot;: &quot;43f25449-7f08-4328-8caf-9c44484be372&quot;
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/poliukhovych/cubic-backend.git",
+    "accountId": "a038407b-48b2-4797-878e-c4c04c7650c4"
   }
-}</component>
+}]]></component>
   <component name="MavenImportPreferences">
     <option name="generalSettings">
       <MavenGeneralSettings>
@@ -64,7 +74,7 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "feature/repository",
+    "git-widget-placeholder": "feature/api-middleware-setup",
     "ignore.virus.scanning.warn.message": "true",
     "kotlin-language-version-configured": "true",
     "node.js.detected.package.eslint": "true",
@@ -106,6 +116,7 @@
       <workItem from="1757621199611" duration="134000" />
       <workItem from="1757660932933" duration="5519000" />
       <workItem from="1757701250966" duration="4162000" />
+      <workItem from="1757756248623" duration="801000" />
     </task>
     <task id="LOCAL-00001" summary="python project preempting">
       <option name="closed" value="true" />
