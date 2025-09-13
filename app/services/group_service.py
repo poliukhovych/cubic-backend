@@ -3,5 +3,4 @@ from app.services.mock_services import MockGroupService
 
 
 class GroupService(MockGroupService):
-    """Сервіс груп (використовує заглушки)"""
     pass

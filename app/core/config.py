@@ -1,10 +1,9 @@
 import os
-from typing import Optional
+from typing import Optional, List
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    """Налаштування додатку"""
     
     DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost/cubic_db"
     
@@ -16,7 +15,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: Optional[str] = None
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
     
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
     
     REDIS_URL: str = "redis://localhost:6379"
     

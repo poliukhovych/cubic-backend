@@ -8,14 +8,12 @@ from app.db.models.base import Base
 
 
 class UserRole(str, enum.Enum):
-    """Ролі користувачів"""
     STUDENT = "student"
     TEACHER = "teacher"
     ADMIN = "admin"
 
 
 class UserStatus(str, enum.Enum):
-    """Статуси користувачів"""
     ACTIVE = "active"
     PENDING_PROFILE = "pending_profile"
     PENDING_APPROVAL = "pending_approval"
@@ -23,7 +21,6 @@ class UserStatus(str, enum.Enum):
 
 
 class User(Base):
-    """Модель користувача"""
     __tablename__ = "users"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -32,7 +29,6 @@ class User(Base):
     role = Column(Enum(UserRole), nullable=True)
     status = Column(Enum(UserStatus), default=UserStatus.PENDING_PROFILE, nullable=False)
     
-    # Google OAuth поля
     google_id = Column(String(255), unique=True, nullable=True, index=True)
     avatar_url = Column(String(500), nullable=True)
     

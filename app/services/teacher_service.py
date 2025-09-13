@@ -3,5 +3,4 @@ from app.services.mock_services import MockTeacherService
 
 
 class TeacherService(MockTeacherService):
-    """Сервіс викладачів (використовує заглушки)"""
     pass

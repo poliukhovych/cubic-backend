@@ -3,7 +3,7 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import health, teachers, groups, courses, auth
+from app.api import health, teachers, groups, courses, auth, admin, students, teacher
 from app.services.course_service import CourseService
 from app.services.teacher_service import TeacherService
 from app.services.group_service import GroupService
@@ -11,11 +11,13 @@ from app.middleware.logging import LoggingMiddleware
 from app.middleware.auth import AuthMiddleware
 from app.middleware.error_handler import setup_error_handlers
 from app.core.config import settings
+from app.core.logging import setup_logging
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
-    # Ініціалізуємо сервіси (без бази даних поки що)
+    setup_logging()
+    
     application.state.course_service = CourseService()
     application.state.teacher_service = TeacherService()
     application.state.group_service = GroupService()
@@ -64,7 +66,8 @@ app.add_middleware(
     teacher_only_paths=[
         "/api/teachers",
         "/api/courses",
-        "/api/groups"
+        "/api/groups",
+        "/api/teacher"
     ]
 )
 
@@ -82,6 +85,9 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(teachers.router, prefix="/api/teachers", tags=["teachers"])
 app.include_router(groups.router, prefix="/api/groups", tags=["groups"])
 app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
+app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(students.router, prefix="/api/students", tags=["students"])
+app.include_router(teacher.router, prefix="/api/teacher", tags=["teacher"])
 
 
 @app.get("/")

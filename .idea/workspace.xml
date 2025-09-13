@@ -4,18 +4,19 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="22ae9ce5-5b96-476a-bacb-b83d0905eaac" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/app/api/teachers.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/teachers.py" afterDir="false" />
+    <list default="true" id="22ae9ce5-5b96-476a-bacb-b83d0905eaac" name="Changes" comment="add auth middleware and error handling&quot;">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/core/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/core/config.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/core/deps.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/core/deps.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/core/logging.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/core/logging.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/db/models/user.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/db/models/user.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/db/session.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/db/session.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/schemas/student.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/schemas/student.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/services/course_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/course_service.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/services/group_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/group_service.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/services/teacher_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/teacher_service.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/run.py" beforeDir="false" afterPath="$PROJECT_DIR$/run.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -116,7 +117,7 @@
       <workItem from="1757621199611" duration="134000" />
       <workItem from="1757660932933" duration="5519000" />
       <workItem from="1757701250966" duration="4162000" />
-      <workItem from="1757756248623" duration="801000" />
+      <workItem from="1757756248623" duration="2711000" />
     </task>
     <task id="LOCAL-00001" summary="python project preempting">
       <option name="closed" value="true" />
@@ -126,7 +127,15 @@
       <option name="project" value="LOCAL" />
       <updated>1757495704031</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="add auth middleware and error handling&quot;">
+      <option name="closed" value="true" />
+      <created>1757760723920</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1757760723920</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -134,6 +143,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="python project preempting" />
-    <option name="LAST_COMMIT_MESSAGE" value="python project preempting" />
+    <MESSAGE value="add auth middleware and error handling&quot;" />
+    <option name="LAST_COMMIT_MESSAGE" value="add auth middleware and error handling&quot;" />
   </component>
 </project>
