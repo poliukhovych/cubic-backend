@@ -2,21 +2,30 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import create_async_engine
 
-from app.api import health, teachers, groups, courses, auth, admin, students, teacher
+from app.api import health, teachers, groups, courses, admin, students, teacher
 from app.services.course_service import CourseService
 from app.services.teacher_service import TeacherService
 from app.services.group_service import GroupService
 from app.middleware.logging import LoggingMiddleware
-from app.middleware.auth import AuthMiddleware
 from app.middleware.error_handler import setup_error_handlers
 from app.core.config import settings
 from app.core.logging import setup_logging
+from app.db.models.base import Base
+
+engine = create_async_engine(
+    "sqlite+aiosqlite:///./cubic_backend.db",
+    echo=True
+)
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     setup_logging()
+    
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     
     application.state.course_service = CourseService()
     application.state.teacher_service = TeacherService()
@@ -44,33 +53,6 @@ app.add_middleware(
 
 app.add_middleware(LoggingMiddleware)
 
-app.add_middleware(
-    AuthMiddleware,
-    excluded_paths=[
-        "/",
-        "/health",
-        "/docs",
-        "/redoc",
-        "/openapi.json",
-        "/auth/login",
-        "/auth/google/start",
-        "/auth/google/callback",
-        "/auth/me",
-        "/auth/dev/login"
-    ],
-    admin_only_paths=[
-        "/api/admin",
-        "/api/users",
-        "/api/system"
-    ],
-    teacher_only_paths=[
-        "/api/teachers",
-        "/api/courses",
-        "/api/groups",
-        "/api/teacher"
-    ]
-)
-
 
 @app.middleware("http")
 async def add_encoding_header(request, call_next):
@@ -81,7 +63,6 @@ async def add_encoding_header(request, call_next):
 
 
 app.include_router(health.router, prefix="/health", tags=["health"])
-app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(teachers.router, prefix="/api/teachers", tags=["teachers"])
 app.include_router(groups.router, prefix="/api/groups", tags=["groups"])
 app.include_router(courses.router, prefix="/api/courses", tags=["courses"])

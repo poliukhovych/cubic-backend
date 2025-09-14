@@ -1,12 +1,10 @@
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from datetime import datetime, timedelta
 import random
 
 from app.schemas.schedule import StudentSchedule
 from app.schemas.homework import StudentHomeworkResponse, HomeworkTask, HomeworkFile
-from app.core.deps import get_current_user
-from app.schemas.auth import User
 
 router = APIRouter()
 
@@ -246,16 +244,10 @@ def generate_mock_homework(student_id: str) -> StudentHomeworkResponse:
 
 
 @router.get("/schedule/{student_id}", response_model=StudentSchedule)
-async def fetch_student_schedule(
-    student_id: str,
-    current_user: User = Depends(get_current_user)
-):
+async def fetch_student_schedule(student_id: str):
     return generate_mock_student_schedule(student_id)
 
 
 @router.get("/homework/{student_id}", response_model=StudentHomeworkResponse)
-async def fetch_student_homework(
-    student_id: str,
-    current_user: User = Depends(get_current_user)
-):
+async def fetch_student_homework(student_id: str):
     return generate_mock_homework(student_id)

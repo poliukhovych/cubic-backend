@@ -1,10 +1,8 @@
 from typing import List
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
 from app.schemas.schedule import TeacherSchedule
 from app.schemas.students import Student
-from app.core.deps import get_current_user
-from app.schemas.auth import User
 
 router = APIRouter()
 
@@ -245,16 +243,10 @@ def generate_mock_teacher_students(teacher_id: str) -> List[Student]:
 
 
 @router.get("/schedule/{teacher_id}", response_model=TeacherSchedule)
-async def fetch_teacher_schedule(
-    teacher_id: str,
-    current_user: User = Depends(get_current_user)
-):
+async def fetch_teacher_schedule(teacher_id: str):
     return generate_mock_teacher_schedule(teacher_id)
 
 
 @router.get("/students/{teacher_id}", response_model=List[Student])
-async def fetch_my_students(
-    teacher_id: str,
-    current_user: User = Depends(get_current_user)
-):
+async def fetch_my_students(teacher_id: str):
     return generate_mock_teacher_students(teacher_id)

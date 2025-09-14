@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from datetime import datetime
 import random
 
@@ -11,8 +11,6 @@ from app.schemas.teachers import Teacher, TeacherDetailedScheduleResponse
 from app.schemas.students import Student, Group
 from app.schemas.courses import Course
 from app.schemas.schedule import FacultyScheduleResponse, FacultyGroupsResponse
-from app.core.deps import get_current_user
-from app.schemas.auth import User
 
 router = APIRouter()
 
@@ -220,15 +218,12 @@ def generate_mock_faculty_lessons(level: str) -> List[dict]:
 
 
 @router.get("/teachers", response_model=List[Teacher])
-async def fetch_teachers(current_user: User = Depends(get_current_user)):
+async def fetch_teachers():
     return generate_mock_teachers()
 
 
 @router.get("/teachers/{teacherId}/schedule", response_model=TeacherDetailedScheduleResponse)
-async def fetch_teacher_detailed_schedule(
-    teacherId: str,
-    current_user: User = Depends(get_current_user)
-):
+async def fetch_teacher_detailed_schedule(teacherId: str):
     return TeacherDetailedScheduleResponse(
         teacherId=teacherId,   
         lessons=[
@@ -245,45 +240,33 @@ async def fetch_teacher_detailed_schedule(
 
 
 @router.post("/schedule/update-global")
-async def update_global_schedule(
-    update: GlobalScheduleUpdate,
-    current_user: User = Depends(get_current_user)
-):
+async def update_global_schedule(update: GlobalScheduleUpdate):
     return {"ok": True}
 
 
 @router.get("/stats", response_model=AdminStats)
-async def fetch_admin_stats(current_user: User = Depends(get_current_user)):
+async def fetch_admin_stats():
     return AdminStats(students=55, teachers=69, courses=14)
 
 
 @router.get("/logs", response_model=List[AdminLog])
-async def fetch_admin_logs(current_user: User = Depends(get_current_user)):
+async def fetch_admin_logs():
     return generate_mock_logs()
 
 
 @router.post("/changes")
-async def push_admin_change(
-    change: AdminChangeCreate,
-    current_user: User = Depends(get_current_user)
-):
+async def push_admin_change(change: AdminChangeCreate):
     return {"ok": True}
 
 
 @router.get("/changes", response_model=List[ChangeItem])
-async def fetch_change_history(
-    limit: int = 6,
-    current_user: User = Depends(get_current_user)
-):
+async def fetch_change_history(limit: int = 6):
     changes = generate_mock_changes()
     return changes[:limit]
 
 
 @router.get("/faculty-schedule/{level}", response_model=FacultyScheduleResponse)
-async def fetch_faculty_schedule(
-    level: str,
-    current_user: User = Depends(get_current_user)
-):
+async def fetch_faculty_schedule(level: str):
     if level not in ["bachelor", "master"]:
         raise HTTPException(status_code=400, detail="Level must be 'bachelor' or 'master'")
     
@@ -292,11 +275,7 @@ async def fetch_faculty_schedule(
 
 
 @router.post("/faculty-schedule/{level}")
-async def save_faculty_schedule(
-    level: str,
-    update: FacultyScheduleUpdate,
-    current_user: User = Depends(get_current_user)
-):
+async def save_faculty_schedule(level: str, update: FacultyScheduleUpdate):
     if level not in ["bachelor", "master"]:
         raise HTTPException(status_code=400, detail="Level must be 'bachelor' or 'master'")
     
@@ -305,10 +284,7 @@ async def save_faculty_schedule(
 
 
 @router.get("/faculty-groups/{level}", response_model=FacultyGroupsResponse)
-async def fetch_faculty_groups(
-    level: str,
-    current_user: User = Depends(get_current_user)
-):
+async def fetch_faculty_groups(level: str):
     if level not in ["bachelor", "master"]:
         raise HTTPException(status_code=400, detail="Level must be 'bachelor' or 'master'")
     
@@ -317,15 +293,15 @@ async def fetch_faculty_groups(
 
 
 @router.get("/groups", response_model=List[Group])
-async def fetch_admin_groups(current_user: User = Depends(get_current_user)):
+async def fetch_admin_groups():
     return generate_mock_groups()
 
 
 @router.get("/students", response_model=List[Student])
-async def fetch_admin_students(current_user: User = Depends(get_current_user)):
+async def fetch_admin_students():
     return generate_mock_students()
 
 
 @router.get("/courses", response_model=List[Course])
-async def fetch_admin_courses(current_user: User = Depends(get_current_user)):
+async def fetch_admin_courses():
     return generate_mock_courses()

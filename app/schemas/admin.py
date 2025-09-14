@@ -16,7 +16,7 @@ class ChangeItem(BaseModel):
     action: Literal["created", "updated", "deleted"]
     title: str
     actor: str
-    trend: Optional[list[int]] = None
+    trend: Optional[list[int]] = None  # Activity trend data over time (e.g., [3, 6, 4, 8, 7, 9] for 6 time periods)
 
 
 class AdminStats(BaseModel):
@@ -34,7 +34,7 @@ class AdminChangeCreate(BaseModel):
     action: Literal["created", "updated", "deleted"]
     title: str
     actor: str
-    trend: Optional[list[int]] = None
+    trend: Optional[list[int]] = None  # Activity trend data over time (e.g., [3, 6, 4, 8, 7, 9] for 6 time periods)
 
 
 class FacultyScheduleUpdate(BaseModel):
