@@ -3,6 +3,7 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
 
 from app.api import health, teachers, groups, courses, admin, students, teacher
 from app.services.course_service import CourseService
@@ -25,6 +26,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     setup_logging()
     
     async with engine.begin() as conn:
+        await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "citext";'))
         await conn.run_sync(Base.metadata.create_all)
     
     application.state.course_service = CourseService()
