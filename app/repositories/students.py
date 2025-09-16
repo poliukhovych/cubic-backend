@@ -2,7 +2,7 @@ from uuid import UUID
 from sqlalchemy import update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.student import Student
+from app.db.models.people.student import Student
 
 
 class StudentRepository:
@@ -66,7 +66,6 @@ class StudentRepository:
         await session.commit()
         return obj
 
-    # DELETE
     async def delete(self, session: AsyncSession, student_id: UUID) -> bool:
         stmt = (
             delete(Student)
