@@ -42,6 +42,6 @@ class TeacherRepository:
         return obj
 
     async def delete(self, teacher_id: uuid.UUID) -> bool:
-        stmt = delete(Teacher).where(Teacher.teacher_id == teacher_id)
+        stmt = delete(Teacher).where(Teacher.teacher_id == teacher_id).returning(Teacher.teacher_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
