@@ -7,7 +7,6 @@ from sqlalchemy import text
 from app.api import health, teachers, groups, courses
 from app.db.models.base import Base
 from app.db.session import engine
-from app.services.course_service import CourseService
 from app.services.teacher_service import TeacherService
 from app.services.group_service import GroupService
 
@@ -19,7 +18,6 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         await conn.run_sync(Base.metadata.create_all)
 
     # application.state is added dynamically so the type check can be safely ignored
-    application.state.course_service = CourseService()
     application.state.teacher_service = TeacherService()
     application.state.group_service = GroupService()
 
