@@ -1,54 +1,84 @@
 from fastapi import APIRouter, HTTPException, Depends
-from typing import List, Dict, Any
+from typing import List
+from uuid import UUID
+
 from app.services.group_service import GroupService
-from app.core.deps import get_group_service
+from app.schemas.group import GroupCreate, GroupUpdate, GroupResponse, GroupListResponse
+from app.core.deps import get_session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
 
-@router.get("/")
+async def get_group_service(session: AsyncSession = Depends(get_session)) -> GroupService:
+    """Dependency для отримання GroupService з сесією БД"""
+    return GroupService(session)
+
+
+@router.get("/", response_model=GroupListResponse)
 async def get_all_groups(
     group_service: GroupService = Depends(get_group_service)
-) -> List[Dict[str, Any]]:
-    groups = await group_service.get_all_groups()
-    return groups
+) -> GroupListResponse:
+    """Отримати всі групи"""
+    return await group_service.get_all_groups()
 
 
-@router.get("/{group_id}")
+@router.get("/{group_id}", response_model=GroupResponse)
 async def get_group_by_id(
-    group_id: str,
+    group_id: UUID,
     group_service: GroupService = Depends(get_group_service)
-) -> Dict[str, Any]:
+) -> GroupResponse:
+    """Отримати групу за ID"""
     group = await group_service.get_group_by_id(group_id)
     if not group:
-        raise HTTPException(status_code=404, detail="Group not found")
+        raise HTTPException(status_code=404, detail="Групу не знайдено")
     return group
 
 
-@router.get("/by-teacher/{teacher_id}")
+@router.get("/by-teacher/{teacher_id}", response_model=List[GroupResponse])
 async def get_groups_by_teacher_id(
-    teacher_id: str,
+    teacher_id: UUID,
     group_service: GroupService = Depends(get_group_service)
-) -> List[Dict[str, Any]]:
-    groups = await group_service.get_groups_by_teacher_id(teacher_id)
-    return groups
+) -> List[GroupResponse]:
+    """Отримати групи за ID викладача"""
+    return await group_service.get_groups_by_teacher_id(teacher_id)
 
 
-@router.post("/")
+@router.post("/", response_model=GroupResponse, status_code=201)
 async def create_group(
-    group_data: Dict[str, Any],
+    group_data: GroupCreate,
     group_service: GroupService = Depends(get_group_service)
-) -> Dict[str, Any]:
-    new_group = await group_service.create_group(group_data)
-    return new_group
+) -> GroupResponse:
+    """Створити нову групу"""
+    try:
+        return await group_service.create_group(group_data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/{group_id}", response_model=GroupResponse)
+async def update_group(
+    group_id: UUID,
+    group_data: GroupUpdate,
+    group_service: GroupService = Depends(get_group_service)
+) -> GroupResponse:
+    """Оновити групу"""
+    try:
+        updated_group = await group_service.update_group(group_id, group_data)
+        if not updated_group:
+            raise HTTPException(status_code=404, detail="Групу не знайдено")
+        return updated_group
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.delete("/{group_id}")
 async def delete_group(
-    group_id: str,
+    group_id: UUID,
     group_service: GroupService = Depends(get_group_service)
-) -> Dict[str, str]:
+) -> dict[str, str]:
+    """Видалити групу"""
     success = await group_service.delete_group(group_id)
     if not success:
-        raise HTTPException(status_code=404, detail="Group not found")
-    return {"message": "Group was deleted successfully"}
+        raise HTTPException(status_code=404, detail="Групу не знайдено")
+    return {"message": "Групу успішно видалено"}
