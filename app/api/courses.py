@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict, Any
-from app.services.course_service import CourseService
-from app.core.deps import get_course_service
+# from app.services.course_service import CourseService
+# from app.core.deps import get_course_service
 
 router = APIRouter()
 
