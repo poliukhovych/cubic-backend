@@ -1,87 +1,72 @@
-from typing import List, Optional, Dict, Any
-import uuid
+from typing import List, Optional
+from uuid import UUID
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.repositories.group_repository import GroupRepository
+from app.schemas.group import GroupCreate, GroupUpdate, GroupResponse, GroupListResponse
+from app.db.models.catalog.group import Group
 
 
 class GroupService:
-    def __init__(self):
-        self._groups = [
-            {
-                "id": "g1",
-                "name": "КН-41",
-                "subgroup": "a",
-                "description": "Група комп'ютерних наук, 1 підгрупа",
-                "year": 2021,
-                "faculty": "Факультет інформаційних технологій"
-            },
-            {
-                "id": "g2",
-                "name": "КН-41",
-                "subgroup": "b",
-                "description": "Група комп'ютерних наук, 2 підгрупа",
-                "year": 2021,
-                "faculty": "Факультет інформаційних технологій"
-            },
-            {
-                "id": "g3",
-                "name": "МТ-42",
-                "subgroup": "a",
-                "description": "Група математики, 1 підгрупа",
-                "year": 2022,
-                "faculty": "Факультет математики та статистики"
-            },
-            {
-                "id": "g4",
-                "name": "ФЗ-40",
-                "subgroup": "a",
-                "description": "Група фізики, 1 підгрупа",
-                "year": 2020,
-                "faculty": "Факультет фізики"
-            },
-            {
-                "id": "g5",
-                "name": "КН-43",
-                "subgroup": "a",
-                "description": "Група комп'ютерних наук, 1 підгрупа",
-                "year": 2023,
-                "faculty": "Факультет інформаційних технологій"
-            }
-        ]
+    def __init__(self, session: AsyncSession):
+        self._repository = GroupRepository(session)
 
-    async def get_all_groups(self) -> List[Dict[str, Any]]:
-        return self._groups
-
-    async def get_groups_by_teacher_id(self, teacher_id: str) -> List[Dict[str, Any]]:
-        teacher_groups_mapping = {
-            "t1": ["g1", "g2", "g5"],
-            "t2": ["g3"],
-            "t3": ["g4"],
-            "t4": ["g1", "g2"]
-        }
+    async def get_all_groups(self) -> GroupListResponse:
+        groups = await self._repository.find_all()
+        total = await self._repository.count()
         
-        group_ids = teacher_groups_mapping.get(teacher_id, [])
-        return [group for group in self._groups if group["id"] in group_ids]
+        return GroupListResponse(
+            groups=[GroupResponse.model_validate(group) for group in groups],
+            total=total
+        )
 
-    async def get_group_by_id(self, group_id: str) -> Optional[Dict[str, Any]]:
-        for group in self._groups:
-            if group["id"] == group_id:
-                return group
-        return None
+    async def get_group_by_id(self, group_id: UUID) -> Optional[GroupResponse]:
+        group = await self._repository.find_by_id(group_id)
+        if not group:
+            return None
+        return GroupResponse.model_validate(group)
 
-    async def create_group(self, group_data: Dict[str, Any]) -> Dict[str, Any]:
-        new_group = {
-            "id": str(uuid.uuid4()),
-            "name": group_data.get("name"),
-            "subgroup": group_data.get("subgroup"),
-            "description": group_data.get("description"),
-            "year": group_data.get("year"),
-            "faculty": group_data.get("faculty")
-        }
-        self._groups.append(new_group)
-        return new_group
+    async def get_groups_by_teacher_id(self, teacher_id: UUID) -> List[GroupResponse]:
+        groups = await self._repository.find_by_teacher_id(teacher_id)
+        return [GroupResponse.model_validate(group) for group in groups]
 
-    async def delete_group(self, group_id: str) -> bool:
-        for i, group in enumerate(self._groups):
-            if group["id"] == group_id:
-                del self._groups[i]
-                return True
-        return False
+    async def create_group(self, group_data: GroupCreate) -> GroupResponse:
+        existing_group = await self._repository.find_by_name(group_data.name)
+        if existing_group:
+            raise ValueError(f"Group: '{group_data.name}' already exist")
+        
+        group = await self._repository.create(
+            name=group_data.name,
+            size=group_data.size
+        )
+        await self._repository._session.commit()
+        return GroupResponse.model_validate(group)
+
+    async def update_group(self, group_id: UUID, group_data: GroupUpdate) -> Optional[GroupResponse]:
+        existing_group = await self._repository.find_by_id(group_id)
+        if not existing_group:
+            return None
+        
+        if group_data.name and group_data.name != existing_group.name:
+            name_conflict = await self._repository.find_by_name(group_data.name)
+            if name_conflict:
+                raise ValueError(f"Group: '{group_data.name}' already exist")
+        
+        updated_group = await self._repository.update(
+            group_id=group_id,
+            name=group_data.name,
+            size=group_data.size
+        )
+        
+        if not updated_group:
+            return None
+        
+        await self._repository._session.commit()
+        return GroupResponse.model_validate(updated_group)
+
+    async def delete_group(self, group_id: UUID) -> bool:
+        result = await self._repository.delete(group_id)
+        if result:
+            await self._repository._session.commit()
+        return result
