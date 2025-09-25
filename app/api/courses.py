@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from uuid import UUID
-
 from app.services.course_service import CourseService
 from app.core.deps import get_course_service
 from app.schemas.course import CourseCreate, CourseUpdate, CourseResponse
