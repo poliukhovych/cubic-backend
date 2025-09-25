@@ -11,10 +11,25 @@ from app.db.models.people.teacher import Teacher
 from app.services.course_service import CourseService
 from app.services.teacher_service import TeacherService
 from app.services.group_service import GroupService
+from app.middleware import LoggingMiddleware, ErrorHandlingMiddleware
+from app.core.logging import setup_logging
+import os
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+    # Setup logging
+    log_level = os.getenv("LOG_LEVEL", "INFO")
+    log_file = os.getenv("LOG_FILE")
+    use_json_logs = os.getenv("USE_JSON_LOGS", "false").lower() == "true"
+    
+    setup_logging(
+        level=log_level,
+        log_file=log_file,
+        use_json=use_json_logs
+    )
+    
+    # Database initialization
     async with engine.begin() as conn:
         await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "citext";'))
         await conn.run_sync(Base.metadata.create_all)
@@ -29,6 +44,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Add middleware in correct order (outermost first)
+# Error handling middleware should be outermost to catch all exceptions
+app.add_middleware(ErrorHandlingMiddleware)
+
+# Logging middleware should be next to log all requests/responses
+app.add_middleware(LoggingMiddleware)
+
+# CORS middleware
 app.add_middleware(  
     CORSMiddleware,
     allow_origins=["*"],
@@ -50,6 +73,20 @@ app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(teachers.router, prefix="/api/teachers", tags=["teachers"])
 app.include_router(groups.router, prefix="/api/groups", tags=["groups"])
 app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
+
+# Simple test endpoint to demo custom exceptions
+from fastapi import HTTPException
+from app.core.exceptions import NotFoundError
+
+@app.get("/test-middleware/{item_id}")
+async def test_middleware(item_id: str):
+    """Simple endpoint to test middleware functionality"""
+    if item_id == "404":
+        raise NotFoundError(detail="Test item not found", resource_type="test", resource_id=item_id)
+    elif item_id == "error":
+        raise HTTPException(status_code=500, detail="Test internal error")
+    else:
+        return {"message": f"Success! Item {item_id} found", "middleware_working": True}
 
 
 @app.get("/")
