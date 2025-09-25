@@ -4,8 +4,8 @@ from pydantic import BaseModel, Field
 
 
 class GroupBase(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100, description="Назва групи")
-    size: int = Field(..., gt=0, description="Розмір групи (кількість студентів)")
+    name: str = Field(..., min_length=1, max_length=100, description="Group name")
+    size: int = Field(..., gt=0, description="Group size (number of students)")
 
 
 class GroupCreate(GroupBase):
@@ -18,7 +18,7 @@ class GroupUpdate(BaseModel):
 
 
 class GroupResponse(GroupBase):
-    group_id: UUID = Field(..., description="Унікальний ідентифікатор групи")
+    group_id: UUID = Field(..., description="Unique group identifier")
     
     class Config:
         from_attributes = True

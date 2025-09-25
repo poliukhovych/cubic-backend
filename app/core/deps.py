@@ -15,9 +15,9 @@ async def get_course_service(session: AsyncSession = Depends(get_session)) -> Co
     return CourseService(session)
 
 
-def get_teacher_service(request: Request) -> TeacherService:
-    return request.app.state.teacher_service
+async def get_teacher_service(session: AsyncSession = Depends(get_session)) -> TeacherService:
+    return TeacherService(session)
 
 
-def get_group_service(request: Request) -> GroupService:
-    return request.app.state.group_service
+async def get_group_service(session: AsyncSession = Depends(get_session)) -> GroupService:
+    return GroupService(session)

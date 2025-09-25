@@ -23,7 +23,7 @@ async def get_course_by_id(
 ) -> CourseResponse:
     course = await course_service.get_course_by_id(course_id)
     if not course:
-        raise HTTPException(status_code=404, detail="Курс не знайдено")
+        raise HTTPException(status_code=404, detail="Course not found")
     return course
 
 
@@ -58,7 +58,7 @@ async def update_course(
     try:
         updated_course = await course_service.update_course(course_id, course_data)
         if not updated_course:
-            raise HTTPException(status_code=404, detail="Курс не знайдено")
+            raise HTTPException(status_code=404, detail="Course not found")
         return updated_course
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -71,5 +71,5 @@ async def delete_course(
 ) -> dict:
     success = await course_service.delete_course(course_id)
     if not success:
-        raise HTTPException(status_code=404, detail="Курс не знайдено")
-    return {"message": "Курс успішно видалено"}
+        raise HTTPException(status_code=404, detail="КCourse not found")
+    return {"message": "Course was successfully deleted"}

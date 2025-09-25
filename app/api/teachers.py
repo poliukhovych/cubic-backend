@@ -47,22 +47,38 @@ async def get_teacher_by_user_id(
     return teacher
 
 
-@router.get("/{teacher_id}/courses")
+@router.get("/{teacher_id}/courses", response_model=List[dict])
 async def get_teacher_courses(
     teacher_id: uuid.UUID,
     course_service: CourseService = Depends(get_course_service)
 ) -> List[dict]:
-    # TODO: Implement when course service is ready
-    return []
+    teacher_service = TeacherService(course_service._repository._session)
+    teacher = await teacher_service.get_teacher_by_id(teacher_id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Teacher with id {teacher_id} not found"
+        )
+    
+    courses = await course_service.get_courses_by_teacher_id(teacher_id)
+    return [course.model_dump() for course in courses]
 
 
-@router.get("/{teacher_id}/groups")
+@router.get("/{teacher_id}/groups", response_model=List[dict])
 async def get_teacher_groups(
     teacher_id: uuid.UUID,
     group_service: GroupService = Depends(get_group_service)
 ) -> List[dict]:
-    # TODO: Implement when group service is ready
-    return []
+    teacher_service = TeacherService(group_service._repository._session)
+    teacher = await teacher_service.get_teacher_by_id(teacher_id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Teacher with id {teacher_id} not found"
+        )
+    
+    groups = await group_service.get_groups_by_teacher_id(teacher_id)
+    return [group.model_dump() for group in groups]
 
 
 @router.post("/", response_model=TeacherResponse, status_code=status.HTTP_201_CREATED)

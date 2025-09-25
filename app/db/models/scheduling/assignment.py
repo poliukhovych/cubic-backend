@@ -50,7 +50,7 @@ class Assignment(Base):
     room_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("rooms.room_id", onupdate="CASCADE", ondelete="RESTRICT"),
-        nullable=True,  # NULL = дистанційне
+        nullable=True,
     )
 
     course_type: Mapped[str] = mapped_column(CourseTypeEnum, nullable=False)  # 'lec' | 'prac' | 'lab'
