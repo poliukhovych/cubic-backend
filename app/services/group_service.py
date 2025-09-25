@@ -40,7 +40,6 @@ class GroupService:
             name=group_data.name,
             size=group_data.size
         )
-        await self._repository._session.commit()
         return GroupResponse.model_validate(group)
 
     async def update_group(self, group_id: UUID, group_data: GroupUpdate) -> Optional[GroupResponse]:
@@ -62,11 +61,8 @@ class GroupService:
         if not updated_group:
             return None
         
-        await self._repository._session.commit()
         return GroupResponse.model_validate(updated_group)
 
     async def delete_group(self, group_id: UUID) -> bool:
         result = await self._repository.delete(group_id)
-        if result:
-            await self._repository._session.commit()
         return result

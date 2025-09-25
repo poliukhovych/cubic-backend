@@ -14,25 +14,21 @@ class GroupRepository:
         self._session = session
 
     async def find_all(self) -> List[Group]:
-        """Отримати всі групи"""
         stmt = select(Group).order_by(Group.name)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
     async def find_by_id(self, group_id: UUID) -> Optional[Group]:
-        """Знайти групу за ID"""
         stmt = select(Group).where(Group.group_id == group_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def find_by_name(self, name: str) -> Optional[Group]:
-        """Знайти групу за назвою"""
         stmt = select(Group).where(Group.name == name)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def find_by_teacher_id(self, teacher_id: UUID) -> List[Group]:
-        """Знайти групи за ID викладача"""
         stmt = (
             select(Group)
             .join(GroupCourse, GroupCourse.group_id == Group.group_id)
@@ -42,11 +38,9 @@ class GroupRepository:
             .order_by(Group.name)
         )
         result = await self._session.execute(stmt)
-        # When joins are involved, duplicates can appear; unique() is safe.
         return list(result.scalars().unique().all())
 
     async def create(self, name: str, size: int) -> Group:
-        """Створити нову групу"""
         obj = Group(name=name, size=size)
         self._session.add(obj)
         await self._session.flush()
@@ -54,7 +48,6 @@ class GroupRepository:
         return obj
 
     async def update(self, group_id: UUID, name: Optional[str] = None, size: Optional[int] = None) -> Optional[Group]:
-        """Оновити групу"""
         update_data = {}
         if name is not None:
             update_data["name"] = name
@@ -64,19 +57,26 @@ class GroupRepository:
         if not update_data:
             return await self.find_by_id(group_id)
         
-        stmt = update(Group).where(Group.group_id == group_id).values(**update_data)
-        await self._session.execute(stmt)
-        await self._session.flush()
-        return await self.find_by_id(group_id)
+        stmt = (
+            update(Group)
+            .where(Group.group_id == group_id)
+            .values(**update_data)
+            .returning(Group)
+        )
+        result = await self._session.execute(stmt)
+        updated_group = result.scalar_one_or_none()
+        
+        if updated_group:
+            await self._session.refresh(updated_group)
+        
+        return updated_group
 
     async def delete(self, group_id: UUID) -> bool:
-        """Видалити групу"""
-        stmt = delete(Group).where(Group.group_id == group_id)
+        stmt = delete(Group).where(Group.group_id == group_id).returning(Group.group_id)
         result = await self._session.execute(stmt)
-        return result.rowcount > 0
+        return result.scalar_one_or_none() is not None
 
     async def count(self) -> int:
-        """Підрахувати кількість груп"""
         stmt = select(Group)
         result = await self._session.execute(stmt)
         return len(list(result.scalars().all()))
