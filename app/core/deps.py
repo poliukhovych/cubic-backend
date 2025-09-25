@@ -1,5 +1,4 @@
 from fastapi import Request
-
 from app.db.session import async_session_maker
 from app.services.course_service import CourseService
 from app.services.teacher_service import TeacherService
