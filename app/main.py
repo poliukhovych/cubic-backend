@@ -19,8 +19,6 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "citext";'))
         await conn.run_sync(Base.metadata.create_all)
     
-    # Инициализация сервисов убрана - они создаются через deps с сессией
-    
     yield
 
 
