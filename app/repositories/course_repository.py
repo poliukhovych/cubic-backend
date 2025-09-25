@@ -40,7 +40,7 @@ class CourseRepository:
     async def create(self, name: str, duration: int) -> Course:
         obj = Course(name=name, duration=duration)
         self._session.add(obj)
-        await self._session.commit()
+        await self._session.flush()
         await self._session.refresh(obj)
         return obj
 
@@ -64,7 +64,6 @@ class CourseRepository:
         updated_course = result.scalar_one_or_none()
         
         if updated_course:
-            await self._session.commit()
             await self._session.refresh(updated_course)
         
         return updated_course
@@ -73,8 +72,6 @@ class CourseRepository:
         stmt = delete(Course).where(Course.course_id == course_id).returning(Course.course_id)
         result = await self._session.execute(stmt)
         deleted_id = result.scalar_one_or_none()
-        if deleted_id:
-            await self._session.commit()
         return deleted_id is not None
 
     async def exists(self, course_id: UUID) -> bool:

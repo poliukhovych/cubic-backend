@@ -3,8 +3,7 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from app.api import health, groups
-# from app.api import teachers, courses
+from app.api import health, groups, teachers, courses
 from app.db.models.base import Base
 from app.db.session import engine
 from app.db.models.people.user import User  
@@ -20,11 +19,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "citext";'))
         await conn.run_sync(Base.metadata.create_all)
     
-    # Инициализация сервисов
-    # application.state is added dynamically so the type check can be safely ignored
-    application.state.course_service = CourseService()
-    application.state.teacher_service = TeacherService()
-    application.state.group_service = GroupService()
+    # Инициализация сервисов убрана - они создаются через deps с сессией
     
     yield
 
@@ -54,9 +49,9 @@ async def add_encoding_header(request, call_next):
 
 
 app.include_router(health.router, prefix="/health", tags=["health"])
-# app.include_router(teachers.router, prefix="/api/teachers", tags=["teachers"])
+app.include_router(teachers.router, prefix="/api/teachers", tags=["teachers"])
 app.include_router(groups.router, prefix="/api/groups", tags=["groups"])
-# app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
+app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
 
 
 @app.get("/")

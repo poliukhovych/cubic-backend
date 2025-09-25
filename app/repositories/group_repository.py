@@ -64,16 +64,25 @@ class GroupRepository:
         if not update_data:
             return await self.find_by_id(group_id)
         
-        stmt = update(Group).where(Group.group_id == group_id).values(**update_data)
-        await self._session.execute(stmt)
-        await self._session.flush()
-        return await self.find_by_id(group_id)
+        stmt = (
+            update(Group)
+            .where(Group.group_id == group_id)
+            .values(**update_data)
+            .returning(Group)
+        )
+        result = await self._session.execute(stmt)
+        updated_group = result.scalar_one_or_none()
+        
+        if updated_group:
+            await self._session.refresh(updated_group)
+        
+        return updated_group
 
     async def delete(self, group_id: UUID) -> bool:
         """Видалити групу"""
-        stmt = delete(Group).where(Group.group_id == group_id)
+        stmt = delete(Group).where(Group.group_id == group_id).returning(Group.group_id)
         result = await self._session.execute(stmt)
-        return result.rowcount > 0
+        return result.scalar_one_or_none() is not None
 
     async def count(self) -> int:
         """Підрахувати кількість груп"""

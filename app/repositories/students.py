@@ -6,9 +6,11 @@ from app.db.models.people.student import Student
 
 
 class StudentRepository:
+    def __init__(self, session: AsyncSession):
+        self._session = session
+
     async def create(
             self,
-            session: AsyncSession,
             *,
             first_name: str,
             last_name: str,
@@ -21,18 +23,16 @@ class StudentRepository:
             patronymic=patronymic,
             confirmed=confirmed,
         )
-        session.add(obj)
-        await session.flush()
-        await session.commit()
-        await session.refresh(obj)
+        self._session.add(obj)
+        await self._session.flush()
+        await self._session.refresh(obj)
         return obj
 
-    async def get(self, session: AsyncSession, student_id: UUID) -> Student | None:
-        return await session.get(Student, student_id)
+    async def get(self, student_id: UUID) -> Student | None:
+        return await self._session.get(Student, student_id)
 
     async def update(
             self,
-            session: AsyncSession,
             student_id: UUID,
             *,
             first_name: str | None = None,
@@ -56,22 +56,19 @@ class StudentRepository:
             .returning(Student)
         )
 
-        res = await session.execute(stmt)
+        res = await self._session.execute(stmt)
         obj = res.scalar_one_or_none()
 
         if obj is None:
-            await session.rollback()
             return None
 
-        await session.commit()
         return obj
 
-    async def delete(self, session: AsyncSession, student_id: UUID) -> bool:
+    async def delete(self, student_id: UUID) -> bool:
         stmt = (
             delete(Student)
             .where(Student.student_id == student_id)
             .returning(Student.student_id)
         )
-        res = await session.execute(stmt)
-        await session.commit()
+        res = await self._session.execute(stmt)
         return res.scalar_one_or_none() is not None
