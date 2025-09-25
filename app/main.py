@@ -21,6 +21,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         await conn.run_sync(Base.metadata.create_all)
     
     # Инициализация сервисов
+    # application.state is added dynamically so the type check can be safely ignored
     application.state.course_service = CourseService()
     application.state.teacher_service = TeacherService()
     application.state.group_service = GroupService()
