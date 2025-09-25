@@ -24,7 +24,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title="Cubic Backend API",
-    description="API для управління викладачами, групами та курсами",
+    description="API for managing teachers, groups and courses",
     version="1.0.0",
     lifespan=lifespan,
 )

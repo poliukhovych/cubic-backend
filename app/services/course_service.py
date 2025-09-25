@@ -28,7 +28,7 @@ class CourseService:
     async def create_course(self, course_data: CourseCreate) -> CourseResponse:
         existing_course = await self._repository.find_by_name(course_data.name)
         if existing_course:
-            raise ValueError(f"Курс з назвою '{course_data.name}' вже існує")
+            raise ValueError(f"A course with the name '{course_data.name}' already exists.")
         
         course = await self._repository.create(
             name=course_data.name,
@@ -43,7 +43,7 @@ class CourseService:
         if course_data.name is not None:
             existing_course = await self._repository.find_by_name(course_data.name)
             if existing_course and existing_course.course_id != course_id:
-                raise ValueError(f"Курс з назвою '{course_data.name}' вже існує")
+                raise ValueError(f"A course with the name '{course_data.name}' already exists.")
         
         updated_course = await self._repository.update(
             course_id=course_id,
@@ -56,9 +56,7 @@ class CourseService:
         return None
 
     async def delete_course(self, course_id: UUID) -> bool:
-        """Видалити курс"""
         return await self._repository.delete(course_id)
 
     async def course_exists(self, course_id: UUID) -> bool:
-        """Перевірити, чи існує курс"""
         return await self._repository.exists(course_id)

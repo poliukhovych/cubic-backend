@@ -24,5 +24,5 @@ class Teacher(Base):
 
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    patronymic: Mapped[str] = mapped_column(String(100), nullable=False)  # обов'язково для викладачів
+    patronymic: Mapped[str] = mapped_column(String(100), nullable=False)
     confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

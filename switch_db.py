@@ -17,7 +17,6 @@ def switch_database(target: str):
         print("  python switch_db.py docker")
         return False
     
-    # Определяем пути к файлам
     project_root = Path(__file__).parent
     env_file = project_root / "env"
     source_file = project_root / f"env.{target}"
