@@ -76,7 +76,12 @@ app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
 
 # Simple test endpoint to demo custom exceptions
 from fastapi import HTTPException
+from pydantic import BaseModel, ValidationError as PydanticValidationError
 from app.core.exceptions import NotFoundError
+
+class TestRequest(BaseModel):
+    name: str
+    age: int
 
 @app.get("/test-middleware/{item_id}")
 async def test_middleware(item_id: str):
@@ -85,8 +90,19 @@ async def test_middleware(item_id: str):
         raise NotFoundError(detail="Test item not found", resource_type="test", resource_id=item_id)
     elif item_id == "error":
         raise HTTPException(status_code=500, detail="Test internal error")
+    elif item_id == "validation":
+        # Test Pydantic validation error handling
+        raise PydanticValidationError.from_exception_data("TestRequest", [
+            {"loc": ("name",), "msg": "Field required", "type": "missing"},
+            {"loc": ("age",), "msg": "Input should be a valid integer", "type": "int_parsing", "input": "not_a_number"}
+        ])
     else:
         return {"message": f"Success! Item {item_id} found", "middleware_working": True}
+
+@app.post("/test-middleware-validation")
+async def test_middleware_validation(request: TestRequest):
+    """Test endpoint for validation error handling"""
+    return {"message": f"Hello {request.name}, you are {request.age} years old"}
 
 
 @app.get("/")

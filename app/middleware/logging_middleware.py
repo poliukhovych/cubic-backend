@@ -1,9 +1,10 @@
 import time
 import uuid
-from typing import Callable
+from typing import Callable, Optional
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.logging import get_logger
+from app.core.deps import get_current_user_id
 
 logger = get_logger(__name__)
 
@@ -34,18 +35,25 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         client_ip = self._get_client_ip(request)
         user_agent = request.headers.get("user-agent", "Unknown")
         
-        # Log request start
+        user_id = await self._get_user_id_for_logging(request)
+        
         start_time = time.time()
+        log_extra = {
+            "request_id": request_id,
+            "method": method,
+            "endpoint": request.url.path,
+            "client_ip": client_ip,
+            "user_agent": user_agent,
+            "query_params": dict(request.query_params),
+        }
+        
+        # Add user ID to log context if available
+        if user_id:
+            log_extra["user_id"] = user_id
+        
         logger.info(
             f"Request started: {method} {url}",
-            extra={
-                "request_id": request_id,
-                "method": method,
-                "endpoint": request.url.path,
-                "client_ip": client_ip,
-                "user_agent": user_agent,
-                "query_params": dict(request.query_params),
-            }
+            extra=log_extra
         )
         
         # Process request
@@ -56,15 +64,21 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             process_time = time.time() - start_time
             
             # Log successful response
+            response_log_extra = {
+                "request_id": request_id,
+                "method": method,
+                "endpoint": request.url.path,
+                "status_code": response.status_code,
+                "duration": round(process_time * 1000, 2),  # in milliseconds
+            }
+            
+            # Add user ID to response log if available
+            if user_id:
+                response_log_extra["user_id"] = user_id
+            
             logger.info(
                 f"Request completed: {method} {url} - Status: {response.status_code}",
-                extra={
-                    "request_id": request_id,
-                    "method": method,
-                    "endpoint": request.url.path,
-                    "status_code": response.status_code,
-                    "duration": round(process_time * 1000, 2),  # in milliseconds
-                }
+                extra=response_log_extra
             )
             
             # Add custom headers
@@ -78,15 +92,21 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             process_time = time.time() - start_time
             
             # Log error
+            error_log_extra = {
+                "request_id": request_id,
+                "method": method,
+                "endpoint": request.url.path,
+                "duration": round(process_time * 1000, 2),
+                "error_type": type(exc).__name__,
+            }
+            
+            # Add user ID to error log if available
+            if user_id:
+                error_log_extra["user_id"] = user_id
+            
             logger.error(
                 f"Request failed: {method} {url} - Error: {str(exc)}",
-                extra={
-                    "request_id": request_id,
-                    "method": method,
-                    "endpoint": request.url.path,
-                    "duration": round(process_time * 1000, 2),
-                    "error_type": type(exc).__name__,
-                },
+                extra=error_log_extra,
                 exc_info=True
             )
             
@@ -109,3 +129,17 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             return request.client.host
         
         return "Unknown"
+    
+    async def _get_user_id_for_logging(self, request: Request) -> Optional[str]:
+        """
+        Extract user ID for logging purposes.
+        This method safely extracts user ID without raising exceptions.
+        """
+        try:
+            # Call the user ID extraction function directly
+            user_id = await get_current_user_id(request, None)
+            return user_id
+        except Exception:
+            # If user extraction fails, continue without user ID
+            # This ensures logging doesn't break if auth is not properly configured
+            return None

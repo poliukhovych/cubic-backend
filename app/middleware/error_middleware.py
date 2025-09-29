@@ -1,4 +1,3 @@
-import traceback
 from typing import Callable, Dict, Any
 from fastapi import Request, Response, status, HTTPException
 from fastapi.responses import JSONResponse
@@ -101,6 +100,18 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             headers=exc.headers or {}
         )
     
+    def _format_validation_errors(self, errors) -> list:
+        """Helper function to format validation errors consistently"""
+        validation_errors = []
+        for error in errors:
+            validation_errors.append({
+                "field": ".".join(str(x) for x in error["loc"]),
+                "message": error["msg"],
+                "type": error["type"],
+                "input": error.get("input")
+            })
+        return validation_errors
+    
     async def _handle_request_validation_error(
         self, 
         request: Request, 
@@ -110,15 +121,8 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
         
         request_id = getattr(request.state, 'request_id', 'unknown')
         
-        # Format validation errors
-        validation_errors = []
-        for error in exc.errors():
-            validation_errors.append({
-                "field": ".".join(str(x) for x in error["loc"]),
-                "message": error["msg"],
-                "type": error["type"],
-                "input": error.get("input")
-            })
+        # Format validation errors using helper function
+        validation_errors = self._format_validation_errors(exc.errors())
         
         logger.warning(
             f"Request validation error occurred: {len(validation_errors)} field(s) invalid",
@@ -199,15 +203,8 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
         
         request_id = getattr(request.state, 'request_id', 'unknown')
         
-        # Format validation errors
-        validation_errors = []
-        for error in exc.errors():
-            validation_errors.append({
-                "field": ".".join(str(x) for x in error["loc"]),
-                "message": error["msg"],
-                "type": error["type"],
-                "input": error.get("input")
-            })
+        # Format validation errors using helper function
+        validation_errors = self._format_validation_errors(exc.errors())
         
         logger.warning(
             f"Validation error occurred: {len(validation_errors)} field(s) invalid",
@@ -326,7 +323,6 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 "method": request.method,
                 "endpoint": request.url.path,
                 "error_type": type(exc).__name__,
-                "traceback": traceback.format_exc(),
             },
             exc_info=True
         )
