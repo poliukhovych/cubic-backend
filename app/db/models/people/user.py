@@ -1,8 +1,15 @@
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Boolean, DateTime, func, UniqueConstraint
+from sqlalchemy import String, Boolean, DateTime, func, UniqueConstraint, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID, CITEXT
 from app.db.models.base import Base
 import uuid
+import enum
+
+
+class UserRole(str, enum.Enum):
+    STUDENT = "student"
+    TEACHER = "teacher"
+    ADMIN = "admin"
 
 
 class User(Base):
@@ -24,6 +31,13 @@ class User(Base):
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     patronymic: Mapped[str | None] = mapped_column(String(100))  # опційно для users
+
+    # Role
+    role: Mapped[UserRole] = mapped_column(
+        SQLEnum(UserRole, name="user_role_enum", create_type=True),
+        nullable=False,
+        default=UserRole.STUDENT
+    )
 
     # Statuses and Timestamps
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
