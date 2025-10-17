@@ -3,7 +3,7 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from app.api import health, groups, teachers, courses
+from app.api import health, groups, teachers, courses, auth
 from app.db.models.base import Base
 from app.db.session import engine
 from app.db.models.people.user import User  
@@ -54,22 +54,27 @@ app.add_middleware(LoggingMiddleware)
 # CORS middleware
 app.add_middleware(  
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # In production, specify exact origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],  # Expose all headers for Google FedCM
 )
 
 
 @app.middleware("http")
-async def add_encoding_header(request, call_next):
+async def add_custom_headers(request, call_next):
     response = await call_next(request)
+    
+    # Add UTF-8 encoding for JSON responses
     if response.headers.get("content-type", "").startswith("application/json"):
         response.headers["content-type"] = "application/json; charset=utf-8"
+    
     return response
 
 
 app.include_router(health.router, prefix="/health", tags=["health"])
+app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(teachers.router, prefix="/api/teachers", tags=["teachers"])
 app.include_router(groups.router, prefix="/api/groups", tags=["groups"])
 app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
