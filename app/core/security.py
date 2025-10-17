@@ -2,7 +2,7 @@
 Security utilities: JWT creation, verification, password hashing, etc.
 """
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
@@ -36,7 +36,7 @@ def create_access_token(user_id: uuid.UUID, email: str, role: UserRole) -> str:
     Returns:
         Encoded JWT token
     """
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     
     payload = {
         "sub": str(user_id),
