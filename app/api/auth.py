@@ -114,7 +114,7 @@ async def google_auth(
     # Existing user - update role if needed
     else:
         # If user doesn't have role yet, set it
-        if not user.role and auth_request.role:
+        if user.role is None and auth_request.role:
             user.role = auth_request.role
             
             # Create corresponding Teacher or Student record if needed
@@ -314,7 +314,6 @@ async def google_oauth_callback(
             email=email,
             first_name=given_name,
             last_name=family_name,
-            role=None,  # Will be set when user selects role
             is_active=True
         )
         db.add(user)
@@ -337,7 +336,7 @@ async def google_oauth_callback(
         )
     
     # Existing user - check if has role
-    if not user.role:
+    if user.role is None:
         # User exists but doesn't have role yet
         access_token = create_access_token(
             user_id=user.user_id,
