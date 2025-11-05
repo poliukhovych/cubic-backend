@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.db.models.people.user import User, UserRole
 from app.db.models.people.teacher import Teacher
 from app.db.models.people.student import Student
+from app.db.models.people.registration_request import RegistrationRequest, RegistrationStatus
 from app.schemas.auth import (
     GoogleAuthRequest, 
     AuthResponse, 
@@ -18,7 +19,8 @@ from app.schemas.auth import (
     RoleSelectionRequest,
     GoogleCallbackRequest,
     GoogleRegisterRequest,
-    GoogleLoginRequest
+    GoogleLoginRequest,
+    AdminLoginRequest
 )
 from app.core.security import create_access_token, get_current_user
 from app.core.config import settings
@@ -67,7 +69,7 @@ async def google_auth(
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
     
-    # New user registration
+    # New user registration - create pending request
     if not user:
         if not auth_request.role:
             raise HTTPException(
@@ -75,41 +77,36 @@ async def google_auth(
                 detail="Role is required for new user registration"
             )
         
-        # Create new user
-        user = User(
+        # Check if there's already a pending request
+        stmt = select(RegistrationRequest).where(
+            (RegistrationRequest.google_sub == google_sub) | (RegistrationRequest.email == email)
+        )
+        res = await db.execute(stmt)
+        existing_req = res.scalar_one_or_none()
+        
+        if existing_req and existing_req.status == RegistrationStatus.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_202_ACCEPTED,
+                detail="Registration request already submitted and awaiting admin approval"
+            )
+        
+        # Create registration request
+        reg = RegistrationRequest(
             google_sub=google_sub,
             email=email,
             first_name=given_name,
             last_name=family_name,
-            role=auth_request.role,
-            is_active=True
+            patronymic=None,
+            requested_role=auth_request.role,
+            status=RegistrationStatus.PENDING,
         )
-        db.add(user)
-        await db.flush()  # Get user_id
-        
-        # Create corresponding Teacher or Student record
-        if auth_request.role == UserRole.TEACHER:
-            teacher = Teacher(
-                user_id=user.user_id,
-                first_name=given_name,
-                last_name=family_name,
-                patronymic="",  # Can be updated later
-                confirmed=False  # Requires admin approval
-            )
-            db.add(teacher)
-        
-        elif auth_request.role == UserRole.STUDENT:
-            student = Student(
-                user_id=user.user_id,
-                first_name=given_name,
-                last_name=family_name,
-                patronymic=None,
-                confirmed=False
-            )
-            db.add(student)
-        
+        db.add(reg)
         await db.commit()
-        await db.refresh(user)
+        
+        raise HTTPException(
+            status_code=status.HTTP_202_ACCEPTED,
+            detail="Registration submitted and awaiting admin approval"
+        )
     
     # Existing user - update role if needed
     else:
@@ -156,6 +153,90 @@ async def google_auth(
         role=user.role
     )
     
+    return AuthResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserResponse.model_validate(user),
+        needs_role_selection=False
+    )
+
+
+@router.post("/admin/login", response_model=AuthResponse)
+async def admin_login(
+    login_request: AdminLoginRequest,
+    db: AsyncSession = Depends(get_db)
+) -> AuthResponse:
+    """
+    Admin login with username/password (non-Google).
+
+    Credentials are provided via environment variables:
+    - ADMIN_USERNAME
+    - ADMIN_PASSWORD
+    Optional profile fields:
+    - ADMIN_EMAIL
+    - ADMIN_FIRST_NAME
+    - ADMIN_LAST_NAME
+    """
+
+    if not settings.ADMIN_USERNAME or not settings.ADMIN_PASSWORD:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Admin login is not configured on the server"
+        )
+
+    if (
+        login_request.username != settings.ADMIN_USERNAME
+        or login_request.password != settings.ADMIN_PASSWORD
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid admin credentials"
+        )
+
+    # Build admin profile
+    admin_email = settings.ADMIN_EMAIL or f"{login_request.username}@admin.local"
+    first_name = settings.ADMIN_FIRST_NAME or "Admin"
+    last_name = settings.ADMIN_LAST_NAME or "User"
+    google_sub = f"admin:{login_request.username}"
+
+    # Try find existing user by email first
+    stmt = select(User).where(User.email == admin_email)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        # Fallback: try by constructed google_sub
+        stmt = select(User).where(User.google_sub == google_sub)
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+
+    # Create admin user if missing
+    if not user:
+        user = User(
+            google_sub=google_sub,
+            email=admin_email,
+            first_name=first_name,
+            last_name=last_name,
+            patronymic=None,
+            role=UserRole.ADMIN,
+            is_active=True,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+    else:
+        # Ensure role is admin
+        if user.role != UserRole.ADMIN:
+            user.role = UserRole.ADMIN
+            await db.commit()
+            await db.refresh(user)
+
+    access_token = create_access_token(
+        user_id=user.user_id,
+        email=user.email,
+        role=user.role
+    )
+
     return AuthResponse(
         access_token=access_token,
         token_type="bearer",
@@ -366,12 +447,12 @@ async def google_oauth_callback(
     )
 
 
-@router.post("/register/{role}", response_model=AuthResponse)
+@router.post("/register/{role}")
 async def register_with_google(
     role: UserRole,
     register_request: GoogleRegisterRequest,
     db: AsyncSession = Depends(get_db)
-) -> AuthResponse:
+) -> dict:
     """
     Register new user with Google OAuth (full redirect flow with Classroom scopes)
     
@@ -411,6 +492,12 @@ async def register_with_google(
         if not id_token_str:
             raise ValueError("No id_token in response")
         
+    except http_requests.exceptions.HTTPError as e:
+        error_detail = e.response.text if hasattr(e, 'response') else str(e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to exchange authorization code: {e.response.status_code} - {error_detail}"
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -446,63 +533,44 @@ async def register_with_google(
             status_code=status.HTTP_409_CONFLICT,
             detail="User already registered. Please use login page."
         )
-    
-    # Create new user with role
-    user = User(
+
+    # If there's already a pending request for this identity/email, return pending
+    stmt = select(RegistrationRequest).where(
+        (RegistrationRequest.google_sub == google_sub) | (RegistrationRequest.email == email)
+    )
+    res = await db.execute(stmt)
+    existing_req = res.scalar_one_or_none()
+    if existing_req and existing_req.status == RegistrationStatus.PENDING:
+        return {
+            "pending": True,
+            "message": "Registration already submitted and awaiting admin approval.",
+            "request_id": str(existing_req.request_id),
+        }
+
+    # Create a RegistrationRequest in pending status
+    reg = RegistrationRequest(
         google_sub=google_sub,
         email=email,
         first_name=given_name,
         last_name=family_name,
-        role=role,
-        is_active=True
+        patronymic=None,
+        requested_role=role,
+        status=RegistrationStatus.PENDING,
     )
-    db.add(user)
-    await db.flush()  # Get user_id
-    
-    # Create corresponding Teacher or Student record
-    if role == UserRole.TEACHER:
-        teacher = Teacher(
-            user_id=user.user_id,
-            first_name=given_name,
-            last_name=family_name,
-            patronymic="",
-            confirmed=False  # Requires admin approval
-        )
-        db.add(teacher)
-    
-    elif role == UserRole.STUDENT:
-        student = Student(
-            user_id=user.user_id,
-            first_name=given_name,
-            last_name=family_name,
-            patronymic=None,
-            confirmed=False
-        )
-        db.add(student)
-    
+    db.add(reg)
     await db.commit()
-    await db.refresh(user)
-    
-    # Generate JWT token for our app
-    access_token = create_access_token(
-        user_id=user.user_id,
-        email=user.email,
-        role=user.role
-    )
-    
-    return AuthResponse(
-        access_token=access_token,
-        token_type="bearer",
-        user=UserResponse.model_validate(user),
-        needs_role_selection=False
-    )
+    return {
+        "pending": True,
+        "message": "Registration submitted and awaiting admin approval.",
+        "request_id": str(reg.request_id),
+    }
 
 
-@router.post("/login", response_model=AuthResponse)
+@router.post("/login")
 async def login_with_google(
     login_request: GoogleLoginRequest,
     db: AsyncSession = Depends(get_db)
-) -> AuthResponse:
+) -> AuthResponse | dict:
     """
     Login existing user with Google OAuth (full redirect flow)
     
@@ -532,6 +600,12 @@ async def login_with_google(
         if not id_token_str:
             raise ValueError("No id_token in response")
         
+    except http_requests.exceptions.HTTPError as e:
+        error_detail = e.response.text if hasattr(e, 'response') else str(e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to exchange authorization code: {e.response.status_code} - {error_detail}"
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -561,6 +635,18 @@ async def login_with_google(
     user = result.scalar_one_or_none()
     
     if not user:
+        # Check for pending registration
+        stmt = select(RegistrationRequest).where(
+            RegistrationRequest.google_sub == google_sub
+        )
+        res = await db.execute(stmt)
+        reg = res.scalar_one_or_none()
+        if reg and reg.status == RegistrationStatus.PENDING:
+            return {
+                "pending": True,
+                "message": "Your registration is awaiting admin approval.",
+                "request_id": str(reg.request_id),
+            }
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found. Please register first."

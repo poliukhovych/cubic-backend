@@ -1,79 +1,34 @@
-# Database Setup
+# Database Setup (Docker-first)
 
-## Switching between local and Docker database
+This project is configured to use Docker for the database and application runtime. There is a single source of truth for environment variables: **`.env`** at the repository root.
 
-The project supports two database connection options:
+## Where env variables come from
 
-### 1. Local PostgreSQL database
+- The root `.env` file is referenced by docker-compose for all services (`db`, `backend`, `frontend`).
+- The backend uses the `DATABASE_URL` from the environment; the Postgres image uses `POSTGRES_*` variables from the same file.
 
-To use local database:
+Example (already provided in `.env`):
 
-1. Make sure PostgreSQL is running on `localhost:5432`
-2. Use the `env.local` file - it's already configured for local database
-3. Or copy the contents of `env.local` to the main configuration file
-
-**Local database parameters:**
-- Host: `localhost:5432`
-- User: `postgres`
-- Password: `1234`
-- Database: `schedule_db`
-
-### 2. Docker database
-
-To use Docker database:
-
-1. Use the `env.docker` file - it's configured for Docker database
-2. Or copy the contents of `env.docker` to the main configuration file
-3. Run `docker-compose up -d` to start the database
-
-**Docker database parameters:**
-- Host: `db:5432` (inside Docker network)
-- User: `appuser`
-- Password: `DB7x9Kp2RqLm4N8sTvW3yZ5`
-- Database: `schedule_db`
-
-## Quick switching
-
-### Option 1: Using script (Recommended)
-```bash
-# Switch to local database
-python switch_db.py local
-
-# Switch to Docker database
-python switch_db.py docker
-
-# Show current configuration
-python switch_db.py status
+```
+DATABASE_URL=postgresql+asyncpg://appuser:DB7x9Kp2RqLm4N8sTvW3yZ5@db:5432/schedule_db
+POSTGRES_USER=appuser
+POSTGRES_PASSWORD=DB7x9Kp2RqLm4N8sTvW3yZ5
+POSTGRES_DB=schedule_db
 ```
 
-### Option 2: File renaming
-```bash
-# For local database
-cp env.local env
+## Run
 
-# For Docker database
-cp env.docker env
+From the repository root:
+
+```powershell
+docker-compose up --build -d
 ```
 
-### Option 3: Direct use of env files
-The application automatically picks up configuration from files:
-- `env` (main)
-- `env.local` (local database)
-- `env.docker` (Docker database)
-- `env.development` (for docker-compose)
+Services:
+- Backend API: http://localhost:8000
+- PostgreSQL: localhost:5432 (inside Docker network as `db:5432`)
 
-## Running
+## Notes
 
-### Local database
-```bash
-python run.py
-```
-
-### Docker database
-```bash
-docker-compose up -d
-```
-
-## Connection check
-
-The application will output information about which database it connected to on startup.
+- Local, non-Docker database modes and extra env files were removed. Use Docker and edit the root `.env` file when you need to change credentials or other server settings.
+- The healthcheck uses the `POSTGRES_*` variables from `.env`.

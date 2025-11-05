@@ -8,11 +8,13 @@ from app.db.models.base import Base
 from app.db.session import engine
 from app.db.models.people.user import User  
 from app.db.models.people.teacher import Teacher 
+from app.db.models.people.registration_request import RegistrationRequest  # ensure table creation
 from app.services.course_service import CourseService
 from app.services.teacher_service import TeacherService
 from app.services.group_service import GroupService
 from app.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 from app.core.logging import setup_logging
+from app.core.config import settings
 import os
 
 
@@ -54,7 +56,7 @@ app.add_middleware(LoggingMiddleware)
 # CORS middleware
 app.add_middleware(  
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify exact origins
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -75,6 +77,10 @@ async def add_custom_headers(request, call_next):
 
 app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(auth.router, prefix="/api", tags=["auth"])
+from app.api import admin_registrations
+from app.api import admin_people
+app.include_router(admin_registrations.router, prefix="/api", tags=["admin-registrations"])
+app.include_router(admin_people.router, prefix="/api", tags=["admin-people"])
 app.include_router(teachers.router, prefix="/api/teachers", tags=["teachers"])
 app.include_router(groups.router, prefix="/api/groups", tags=["groups"])
 app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
