@@ -42,6 +42,12 @@ class GoogleLoginRequest(BaseModel):
     redirect_uri: str = Field(..., description="Redirect URI used in OAuth flow")
 
 
+class AdminLoginRequest(BaseModel):
+    """Request body for admin username/password login"""
+    username: str = Field(..., description="Admin username")
+    password: str = Field(..., description="Admin password")
+
+
 # ============= Response Schemas =============
 
 class UserResponse(BaseModel):
