@@ -1,10 +1,12 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from uuid import UUID
 
 from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.people.admin import Admin
+
+_UNSET = object()
 
 
 class AdminRepository:
@@ -49,19 +51,19 @@ class AdminRepository:
         self,
         admin_id: UUID,
         *,
-        first_name: Optional[str] = None,
-        last_name: Optional[str] = None,
-        patronymic: Optional[str] = None,
-        user_id: Optional[UUID] = None,
+        first_name: Union[str, None, object] = _UNSET,
+        last_name: Union[str, None, object] = _UNSET,
+        patronymic: Union[str, None, object] = _UNSET,
+        user_id: Union[UUID, None, object] = _UNSET,
     ) -> Optional[Admin]:
         update_data = {}
-        if first_name is not None:
+        if first_name is not _UNSET:
             update_data["first_name"] = first_name
-        if last_name is not None:
+        if last_name is not _UNSET:
             update_data["last_name"] = last_name
-        if patronymic is not None:
+        if patronymic is not _UNSET:
             update_data["patronymic"] = patronymic
-        if user_id is not None:
+        if user_id is not _UNSET:
             update_data["user_id"] = user_id
 
         if not update_data:
