@@ -1,10 +1,12 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from uuid import UUID
 
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.scheduling.schedule import Schedule
+
+_UNSET = object()
 
 
 class ScheduleRepository:
@@ -33,9 +35,9 @@ class ScheduleRepository:
         await self._session.refresh(obj)
         return obj
 
-    async def update(self, schedule_id: UUID, label: Optional[str] = None) -> Optional[Schedule]:
+    async def update(self, schedule_id: UUID, label: Union[str, None, object] = _UNSET) -> Optional[Schedule]:
         update_data = {}
-        if label is not None:
+        if label is not _UNSET:
             update_data["label"] = label
 
         if not update_data:

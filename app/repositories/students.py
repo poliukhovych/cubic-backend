@@ -1,8 +1,11 @@
+from typing import Union
 from uuid import UUID
 from sqlalchemy import update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.people.student import Student
+
+_UNSET = object()
 
 
 class StudentRepository:
@@ -35,10 +38,10 @@ class StudentRepository:
             self,
             student_id: UUID,
             *,
-            first_name: str | None = None,
-            last_name: str | None = None,
-            patronymic: str | None = None,
-            confirmed: bool | None = None,
+            first_name: Union[str, None, object] = _UNSET,
+            last_name: Union[str, None, object] = _UNSET,
+            patronymic: Union[str, None, object] = _UNSET,
+            confirmed: Union[bool, None, object] = _UNSET,
     ) -> Student | None:
         stmt = (
             update(Student)
@@ -50,7 +53,7 @@ class StudentRepository:
                         last_name=last_name,
                         patronymic=patronymic,
                         confirmed=confirmed,
-                    ).items() if v is not None
+                    ).items() if v is not _UNSET
                 }
             )
             .returning(Student)

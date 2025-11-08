@@ -1,9 +1,11 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.scheduling.timeslot import Timeslot
+
+_UNSET = object()
 
 
 class TimeslotRepository:
@@ -65,13 +67,13 @@ class TimeslotRepository:
         self,
         timeslot_id: int,
         *,
-        day: Optional[int] = None,
-        lesson_id: Optional[int] = None,
+        day: Union[int, None, object] = _UNSET,
+        lesson_id: Union[int, None, object] = _UNSET,
     ) -> Optional[Timeslot]:
         update_data = {}
-        if day is not None:
+        if day is not _UNSET:
             update_data["day"] = day
-        if lesson_id is not None:
+        if lesson_id is not _UNSET:
             update_data["lesson_id"] = lesson_id
 
         if not update_data:

@@ -1,10 +1,12 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from uuid import UUID
 
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.scheduling.subgroup_contraints import SubgroupConstraints
+
+_UNSET = object()
 
 
 class SubgroupConstraintsRepository:
@@ -103,10 +105,10 @@ class SubgroupConstraintsRepository:
         group_id: UUID,
         course_id: UUID,
         *,
-        subgroups_count: Optional[int] = None,
+        subgroups_count: Union[int, None, object] = _UNSET,
     ) -> Optional[SubgroupConstraints]:
         update_data = {}
-        if subgroups_count is not None:
+        if subgroups_count is not _UNSET:
             update_data["subgroups_count"] = subgroups_count
 
         if not update_data:

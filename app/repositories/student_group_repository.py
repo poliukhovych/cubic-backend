@@ -1,10 +1,12 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from uuid import UUID
 
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.joins.student_group import StudentGroup
+
+_UNSET = object()
 
 
 class StudentGroupRepository:
@@ -66,10 +68,10 @@ class StudentGroupRepository:
         self,
         student_id: UUID,
         *,
-        group_id: Optional[UUID] = None,
+        group_id: Union[UUID, None, object] = _UNSET,
     ) -> Optional[StudentGroup]:
         update_data = {}
-        if group_id is not None:
+        if group_id is not _UNSET:
             update_data["group_id"] = group_id
 
         if not update_data:

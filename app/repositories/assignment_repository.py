@@ -1,10 +1,12 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from uuid import UUID
 
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.scheduling.assignment import Assignment
+
+_UNSET = object()
 
 
 class AssignmentRepository:
@@ -135,31 +137,31 @@ class AssignmentRepository:
         self,
         assignment_id: UUID,
         *,
-        schedule_id: Optional[UUID] = None,
-        timeslot_id: Optional[int] = None,
-        group_id: Optional[UUID] = None,
-        subgroup_no: Optional[int] = None,
-        course_id: Optional[UUID] = None,
-        teacher_id: Optional[UUID] = None,
-        room_id: Optional[UUID] = None,
-        course_type: Optional[str] = None,
+        schedule_id: Union[UUID, None, object] = _UNSET,
+        timeslot_id: Union[int, None, object] = _UNSET,
+        group_id: Union[UUID, None, object] = _UNSET,
+        subgroup_no: Union[int, None, object] = _UNSET,
+        course_id: Union[UUID, None, object] = _UNSET,
+        teacher_id: Union[UUID, None, object] = _UNSET,
+        room_id: Union[UUID, None, object] = _UNSET,
+        course_type: Union[str, None, object] = _UNSET,
     ) -> Optional[Assignment]:
         update_data = {}
-        if schedule_id is not None:
+        if schedule_id is not _UNSET:
             update_data["schedule_id"] = schedule_id
-        if timeslot_id is not None:
+        if timeslot_id is not _UNSET:
             update_data["timeslot_id"] = timeslot_id
-        if group_id is not None:
+        if group_id is not _UNSET:
             update_data["group_id"] = group_id
-        if subgroup_no is not None:
+        if subgroup_no is not _UNSET:
             update_data["subgroup_no"] = subgroup_no
-        if course_id is not None:
+        if course_id is not _UNSET:
             update_data["course_id"] = course_id
-        if teacher_id is not None:
+        if teacher_id is not _UNSET:
             update_data["teacher_id"] = teacher_id
-        if room_id is not None:
+        if room_id is not _UNSET:
             update_data["room_id"] = room_id
-        if course_type is not None:
+        if course_type is not _UNSET:
             update_data["course_type"] = course_type
 
         if not update_data:
