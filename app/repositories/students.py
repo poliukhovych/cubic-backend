@@ -1,9 +1,11 @@
-from typing import Union
+from typing import List, Optional, Union
 from uuid import UUID
-from sqlalchemy import update, delete
+
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.people.student import Student
+from app.db.models.joins.student_group import StudentGroup
 
 _UNSET = object()
 
@@ -12,6 +14,31 @@ class StudentRepository:
     def __init__(self, session: AsyncSession):
         self._session = session
 
+    async def find_all(self) -> List[Student]:
+        stmt = select(Student).order_by(Student.last_name, Student.first_name)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def find_by_id(self, student_id: UUID) -> Student | None:
+        stmt = select(Student).where(Student.student_id == student_id)
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def find_by_user_id(self, user_id: UUID) -> Student | None:
+        stmt = select(Student).where(Student.user_id == user_id)
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def find_by_group_id(self, group_id: UUID) -> List[Student]:
+        stmt = (
+            select(Student)
+            .join(StudentGroup, StudentGroup.student_id == Student.student_id)
+            .where(StudentGroup.group_id == group_id)
+            .order_by(Student.last_name, Student.first_name)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
     async def create(
             self,
             *,
@@ -19,12 +46,14 @@ class StudentRepository:
             last_name: str,
             patronymic: str | None = None,
             confirmed: bool = False,
+            user_id: Optional[UUID] = None,
     ) -> Student:
         obj = Student(
             first_name=first_name,
             last_name=last_name,
             patronymic=patronymic,
             confirmed=confirmed,
+            user_id=user_id,
         )
         self._session.add(obj)
         await self._session.flush()
@@ -32,7 +61,7 @@ class StudentRepository:
         return obj
 
     async def get(self, student_id: UUID) -> Student | None:
-        return await self._session.get(Student, student_id)
+        return await self.find_by_id(student_id)
 
     async def update(
             self,
@@ -42,20 +71,27 @@ class StudentRepository:
             last_name: Union[str, None, object] = _UNSET,
             patronymic: Union[str, None, object] = _UNSET,
             confirmed: Union[bool, None, object] = _UNSET,
+            user_id: Union[UUID, None, object] = _UNSET,
     ) -> Student | None:
+        update_data = {
+            k: v
+            for k, v in dict(
+                first_name=first_name,
+                last_name=last_name,
+                patronymic=patronymic,
+                confirmed=confirmed,
+                user_id=user_id,
+            ).items()
+            if v is not _UNSET
+        }
+
+        if not update_data:
+            return await self.find_by_id(student_id)
+
         stmt = (
             update(Student)
             .where(Student.student_id == student_id)
-            .values(
-                **{
-                    k: v for k, v in dict(
-                        first_name=first_name,
-                        last_name=last_name,
-                        patronymic=patronymic,
-                        confirmed=confirmed,
-                    ).items() if v is not _UNSET
-                }
-            )
+            .values(**update_data)
             .returning(Student)
         )
 
@@ -65,6 +101,7 @@ class StudentRepository:
         if obj is None:
             return None
 
+        await self._session.refresh(obj)
         return obj
 
     async def delete(self, student_id: UUID) -> bool:
@@ -75,3 +112,11 @@ class StudentRepository:
         )
         res = await self._session.execute(stmt)
         return res.scalar_one_or_none() is not None
+
+    async def confirm_student(self, student_id: UUID) -> Student | None:
+        return await self.update(student_id, confirmed=True)
+
+    async def exists(self, student_id: UUID) -> bool:
+        stmt = select(Student.student_id).where(Student.student_id == student_id)
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none() is not None
