@@ -5,8 +5,7 @@ from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.catalog.lesson import Lesson
-
-_UNSET = object()
+from app.utils.unset import UNSET
 
 
 class LessonRepository:
@@ -44,13 +43,13 @@ class LessonRepository:
         self,
         lesson_id: int,
         *,
-        start_time: Union[time, None, object] = _UNSET,
-        end_time: Union[time, None, object] = _UNSET,
+        start_time: Union[time, None, object] = UNSET,
+        end_time: Union[time, None, object] = UNSET,
     ) -> Optional[Lesson]:
         update_data = {}
-        if start_time is not _UNSET:
+        if start_time is not UNSET:
             update_data["start_time"] = start_time
-        if end_time is not _UNSET:
+        if end_time is not UNSET:
             update_data["end_time"] = end_time
 
         if not update_data:

@@ -7,8 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.catalog.group import Group
 from app.db.models.joins.group_course import GroupCourse
 from app.db.models.joins.teacher_course import TeacherCourse
-
-_UNSET = object()
+from app.utils.unset import UNSET
 
 
 class GroupRepository:
@@ -49,11 +48,11 @@ class GroupRepository:
         await self._session.refresh(obj)
         return obj
 
-    async def update(self, group_id: UUID, name: Union[str, None, object] = _UNSET, size: Union[int, None, object] = _UNSET) -> Optional[Group]:
+    async def update(self, group_id: UUID, name: Union[str, None, object] = UNSET, size: Union[int, None, object] = UNSET) -> Optional[Group]:
         update_data = {}
-        if name is not _UNSET:
+        if name is not UNSET:
             update_data["name"] = name
-        if size is not _UNSET:
+        if size is not UNSET:
             update_data["size"] = size
         
         if not update_data:

@@ -1,13 +1,12 @@
 from typing import List, Optional, Union
 from uuid import UUID
 
-from sqlalchemy import select, delete, update
+from sqlalchemy import select, delete, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.catalog.course import Course
 from app.db.models.joins.teacher_course import TeacherCourse
-
-_UNSET = object()
+from app.utils.unset import UNSET
 
 
 class CourseRepository:
@@ -46,11 +45,11 @@ class CourseRepository:
         await self._session.refresh(obj)
         return obj
 
-    async def update(self, course_id: UUID, name: Union[str, None, object] = _UNSET, duration: Union[int, None, object] = _UNSET) -> Optional[Course]:
+    async def update(self, course_id: UUID, name: Union[str, None, object] = UNSET, duration: Union[int, None, object] = UNSET) -> Optional[Course]:
         update_data = {}
-        if name is not _UNSET:
+        if name is not UNSET:
             update_data["name"] = name
-        if duration is not _UNSET:
+        if duration is not UNSET:
             update_data["duration"] = duration
         
         if not update_data:
@@ -80,3 +79,9 @@ class CourseRepository:
         stmt = select(Course.course_id).where(Course.course_id == course_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
+
+    async def count(self) -> int:
+        """Counts the total number of courses."""
+        stmt = select(func.count(Course.course_id))
+        result = await self._session.execute(stmt)
+        return result.scalar() or 0

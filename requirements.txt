@@ -1,4 +1,4 @@
-httpx
+httpx~=0.28.1
 fastapi>=0.104.1
 uvicorn[standard]>=0.24.0
 pydantic[email]>=2.5.0
@@ -12,3 +12,6 @@ passlib[bcrypt]>=1.7.4
 python-dotenv>=1.0.0
 google-auth>=2.25.0
 requests>=2.31.0
+jose~=1.0.0
+starlette~=0.47.2
+pytest~=8.4.1

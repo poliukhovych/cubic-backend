@@ -5,8 +5,7 @@ from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.people.user import User, UserRole
-
-_UNSET = object()
+from app.utils.unset import UNSET
 
 
 class UserRepository:
@@ -67,28 +66,28 @@ class UserRepository:
         self,
         user_id: UUID,
         *,
-        google_sub: Union[str, None, object] = _UNSET,
-        email: Union[str, None, object] = _UNSET,
-        first_name: Union[str, None, object] = _UNSET,
-        last_name: Union[str, None, object] = _UNSET,
-        patronymic: Union[str, None, object] = _UNSET,
-        role: Union[UserRole, None, object] = _UNSET,
-        is_active: Union[bool, None, object] = _UNSET,
+        google_sub: Union[str, None, object] = UNSET,
+        email: Union[str, None, object] = UNSET,
+        first_name: Union[str, None, object] = UNSET,
+        last_name: Union[str, None, object] = UNSET,
+        patronymic: Union[str, None, object] = UNSET,
+        role: Union[UserRole, None, object] = UNSET,
+        is_active: Union[bool, None, object] = UNSET,
     ) -> Optional[User]:
         update_data = {}
-        if google_sub is not _UNSET:
+        if google_sub is not UNSET:
             update_data["google_sub"] = google_sub
-        if email is not _UNSET:
+        if email is not UNSET:
             update_data["email"] = email
-        if first_name is not _UNSET:
+        if first_name is not UNSET:
             update_data["first_name"] = first_name
-        if last_name is not _UNSET:
+        if last_name is not UNSET:
             update_data["last_name"] = last_name
-        if patronymic is not _UNSET:
+        if patronymic is not UNSET:
             update_data["patronymic"] = patronymic
-        if role is not _UNSET:
+        if role is not UNSET:
             update_data["role"] = role
-        if is_active is not _UNSET:
+        if is_active is not UNSET:
             update_data["is_active"] = is_active
 
         if not update_data:

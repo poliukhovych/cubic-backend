@@ -1,12 +1,11 @@
 from typing import List, Optional, Union
 from uuid import UUID
 
-from sqlalchemy import select, delete, update
+from sqlalchemy import select, delete, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.catalog.room import Room
-
-_UNSET = object()
+from app.utils.unset import UNSET
 
 
 class RoomRepository:
@@ -36,15 +35,15 @@ class RoomRepository:
         return obj
 
     async def update(
-        self, 
-        room_id: UUID, 
-        name: Union[str, None, object] = _UNSET, 
-        capacity: Union[int, None, object] = _UNSET
+        self,
+        room_id: UUID,
+        name: Union[str, None, object] = UNSET,
+        capacity: Union[int, None, object] = UNSET
     ) -> Optional[Room]:
         update_data = {}
-        if name is not _UNSET:
+        if name is not UNSET:
             update_data["name"] = name
-        if capacity is not _UNSET:
+        if capacity is not UNSET:
             update_data["capacity"] = capacity
         
         if not update_data:
@@ -75,3 +74,8 @@ class RoomRepository:
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
 
+    async def count(self) -> int:
+        """Counts the total number of rooms."""
+        stmt = select(func.count(Room.room_id))
+        result = await self._session.execute(stmt)
+        return result.scalar_one() or 0

@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Optional, Union
 import uuid
 from pydantic import BaseModel, Field
+from app.utils.unset import UNSET
 
 
 class TeacherBase(BaseModel):
@@ -15,11 +16,11 @@ class TeacherCreate(TeacherBase):
 
 
 class TeacherUpdate(BaseModel):
-    first_name: Optional[str] = Field(None, min_length=1, max_length=100, description="Name")
-    last_name: Optional[str] = Field(None, min_length=1, max_length=100, description="Surname")
-    patronymic: Optional[str] = Field(None, min_length=1, max_length=100, description="Middle name")
-    confirmed: Optional[bool] = Field(None, description="Is the teacher verified?")
-    user_id: Optional[uuid.UUID] = Field(None, description="User ID")
+    first_name: Union[str, None, object] = Field(UNSET, min_length=1, max_length=100, description="Name")
+    last_name: Union[str, None, object] = Field(UNSET, min_length=1, max_length=100, description="Surname")
+    patronymic: Union[str, None, object] = Field(UNSET, min_length=1, max_length=100, description="Middle name")
+    confirmed: Union[bool, None, object] = Field(UNSET, description="Is the teacher verified?")
+    user_id: Union[uuid.UUID, None, object] = Field(UNSET, description="User ID")
 
 
 class TeacherResponse(TeacherBase):

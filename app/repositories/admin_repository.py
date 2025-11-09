@@ -5,8 +5,7 @@ from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.people.admin import Admin
-
-_UNSET = object()
+from app.utils.unset import UNSET
 
 
 class AdminRepository:
@@ -51,19 +50,19 @@ class AdminRepository:
         self,
         admin_id: UUID,
         *,
-        first_name: Union[str, None, object] = _UNSET,
-        last_name: Union[str, None, object] = _UNSET,
-        patronymic: Union[str, None, object] = _UNSET,
-        user_id: Union[UUID, None, object] = _UNSET,
+        first_name: Union[str, None, object] = UNSET,
+        last_name: Union[str, None, object] = UNSET,
+        patronymic: Union[str, None, object] = UNSET,
+        user_id: Union[UUID, None, object] = UNSET,
     ) -> Optional[Admin]:
         update_data = {}
-        if first_name is not _UNSET:
+        if first_name is not UNSET:
             update_data["first_name"] = first_name
-        if last_name is not _UNSET:
+        if last_name is not UNSET:
             update_data["last_name"] = last_name
-        if patronymic is not _UNSET:
+        if patronymic is not UNSET:
             update_data["patronymic"] = patronymic
-        if user_id is not _UNSET:
+        if user_id is not UNSET:
             update_data["user_id"] = user_id
 
         if not update_data:

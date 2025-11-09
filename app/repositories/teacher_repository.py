@@ -1,12 +1,11 @@
 from typing import List, Optional, Union
 import uuid
 
-from sqlalchemy import select, delete, update
+from sqlalchemy import select, delete, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.people.teacher import Teacher
-
-_UNSET = object()
+from app.utils.unset import UNSET
 
 
 class TeacherRepository:
@@ -51,22 +50,22 @@ class TeacherRepository:
     async def update(
         self,
         teacher_id: uuid.UUID,
-        first_name: Union[str, None, object] = _UNSET,
-        last_name: Union[str, None, object] = _UNSET,
-        patronymic: Union[str, None, object] = _UNSET,
-        confirmed: Union[bool, None, object] = _UNSET,
-        user_id: Union[uuid.UUID, None, object] = _UNSET,
+        first_name: Union[str, None, object] = UNSET,
+        last_name: Union[str, None, object] = UNSET,
+        patronymic: Union[str, None, object] = UNSET,
+        confirmed: Union[bool, None, object] = UNSET,
+        user_id: Union[uuid.UUID, None, object] = UNSET,
     ) -> Optional[Teacher]:
         update_data = {}
-        if first_name is not _UNSET:
+        if first_name is not UNSET:
             update_data["first_name"] = first_name
-        if last_name is not _UNSET:
+        if last_name is not UNSET:
             update_data["last_name"] = last_name
-        if patronymic is not _UNSET:
+        if patronymic is not UNSET:
             update_data["patronymic"] = patronymic
-        if confirmed is not _UNSET:
+        if confirmed is not UNSET:
             update_data["confirmed"] = confirmed
-        if user_id is not _UNSET:
+        if user_id is not UNSET:
             update_data["user_id"] = user_id
 
         if not update_data:
@@ -91,3 +90,9 @@ class TeacherRepository:
 
     async def confirm_teacher(self, teacher_id: uuid.UUID) -> Optional[Teacher]:
         return await self.update(teacher_id, confirmed=True)
+
+    async def count(self) -> int:
+        """Counts the total number of teachers."""
+        stmt = select(func.count(Teacher.teacher_id))
+        result = await self._session.execute(stmt)
+        return result.scalar() or 0

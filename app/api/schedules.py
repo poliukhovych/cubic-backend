@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-# from ..database import get_db
-# from .. import schemas, crud
-from app.services import scheduler_client
 
+from app.core.deps import get_schedule_service
+from app.schemas.schedule import ScheduleGenerationResponse
+from app.services.schedule_generation_service import ScheduleService
 
 router = APIRouter(
     prefix="/schedules",
@@ -11,24 +10,28 @@ router = APIRouter(
 )
 
 
-@router.post("/generate")
-async def generate_new_schedule(db: Session = Depends(get_db)):
+@router.post("/generate", response_model=ScheduleGenerationResponse)
+async def generate_new_schedule(
+    service: ScheduleService = Depends(get_schedule_service)
+):
+    """
+    Запускає генерацію нового розкладу.
+
+    Цей ендпоінт звертається до ScheduleService, який виконує всю
+    важку роботу:
+    1. Збирає дані з локальної БД.
+    2. Відправляє їх мікросервісу планування.
+    3. Очікує на результат.
+    4. Зберігає готовий розклад назад у локальну БД.
+    """
     try:
-        # Calling microservice
-        assignments_data = await scheduler_client.generate_schedule_and_wait(db)
-
-        # Adapt and save result to DB
-        # Start of block to be adapted
-        # Here we should call our CRUD function for saving
-        # validated_assignments = [schemas.Assignment.model_validate(a) for a in assignments_data]
-        # saved_assignments = crud.save_schedule(db, validated_assignments)
-        # End of block to be adapted
-
-        # Returning result to frontend
+        saved_assignments = await service.generate_and_save_schedule()
         return {
-            "message": f"Successfully generated a new schedule with {len(assignments_data)} assignments.",
-            "schedule": assignments_data
+            "message": f"Successfully generated and saved a new schedule with {len(saved_assignments)} assignments.",
+            "schedule": saved_assignments
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Обробити специфічні помилки сервісу
+        print(f"Error during schedule generation: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")

@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Optional, Union
 from uuid import UUID
 from pydantic import BaseModel, Field
+from app.utils.unset import UNSET
 
 
 class GroupBase(BaseModel):
@@ -13,8 +14,8 @@ class GroupCreate(GroupBase):
 
 
 class GroupUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    size: Optional[int] = Field(None, gt=0)
+    name: Union[str, None, object] = Field(UNSET, min_length=1, max_length=100)
+    size: Union[int, None, object] = Field(UNSET, gt=0)
 
 
 class GroupResponse(GroupBase):

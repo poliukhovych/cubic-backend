@@ -5,8 +5,7 @@ from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.scheduling.subgroup_contraints import SubgroupConstraints
-
-_UNSET = object()
+from app.utils.unset import UNSET
 
 
 class SubgroupConstraintsRepository:
@@ -105,10 +104,10 @@ class SubgroupConstraintsRepository:
         group_id: UUID,
         course_id: UUID,
         *,
-        subgroups_count: Union[int, None, object] = _UNSET,
+        subgroups_count: Union[int, None, object] = UNSET,
     ) -> Optional[SubgroupConstraints]:
         update_data = {}
-        if subgroups_count is not _UNSET:
+        if subgroups_count is not UNSET:
             update_data["subgroups_count"] = subgroups_count
 
         if not update_data:

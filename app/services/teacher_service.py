@@ -1,10 +1,10 @@
-from typing import List, Optional
+from typing import Optional
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.teacher_repository import TeacherRepository
-from app.schemas.teacher import TeacherCreate, TeacherUpdate, TeacherResponse
+from app.schemas.teacher import TeacherCreate, TeacherUpdate, TeacherResponse, TeacherListResponse
 
 
 class TeacherService:
@@ -12,9 +12,13 @@ class TeacherService:
         self._session = session
         self._repository = TeacherRepository(session)
 
-    async def get_all_teachers(self) -> List[TeacherResponse]:
+    async def get_all_teachers(self) -> TeacherListResponse:
         teachers = await self._repository.find_all()
-        return [TeacherResponse.model_validate(teacher) for teacher in teachers]
+        total = await self._repository.count()
+        return TeacherListResponse(
+            teachers=[TeacherResponse.model_validate(teacher) for teacher in teachers],
+            total=total
+        )
 
     async def get_teacher_by_id(self, teacher_id: uuid.UUID) -> Optional[TeacherResponse]:
         teacher = await self._repository.find_by_id(teacher_id)

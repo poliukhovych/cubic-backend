@@ -15,8 +15,7 @@ router = APIRouter()
 async def get_all_teachers(
     teacher_service: TeacherService = Depends(get_teacher_service)
 ) -> TeacherListResponse:
-    teachers = await teacher_service.get_all_teachers()
-    return TeacherListResponse(teachers=teachers, total=len(teachers))
+    return await teacher_service.get_all_teachers()
 
 
 @router.get("/{teacher_id}", response_model=TeacherResponse)

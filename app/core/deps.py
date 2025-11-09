@@ -3,6 +3,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
 from app.db.session import async_session_maker
 from app.services.course_service import CourseService
+from app.services.room_service import RoomService
+from app.services.schedule_generation_service import ScheduleService
 from app.services.teacher_service import TeacherService
 from app.services.group_service import GroupService
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,16 +15,55 @@ async def get_session():
         yield session
 
 
+# --- Individual Service Dependencies ---
+
 async def get_course_service(session: AsyncSession = Depends(get_session)) -> CourseService:
     return CourseService(session)
-
 
 async def get_teacher_service(session: AsyncSession = Depends(get_session)) -> TeacherService:
     return TeacherService(session)
 
-
 async def get_group_service(session: AsyncSession = Depends(get_session)) -> GroupService:
     return GroupService(session)
+
+async def get_room_service(session: AsyncSession = Depends(get_session)) -> RoomService:
+    return RoomService(session)
+
+async def get_schedule_log_service(
+    session: AsyncSession = Depends(get_session)
+) -> ScheduleLogService:
+    """Dependency for the ScheduleLogService."""
+    return ScheduleLogService(session)
+
+async def get_assignment_service(
+    session: AsyncSession = Depends(get_session)
+) -> AssignmentService:
+    """Dependency for the AssignmentService."""
+    return AssignmentService(session)
+
+
+# --- Orchestrator Service Dependency ---
+
+async def get_schedule_service(
+    group_service: GroupService = Depends(get_group_service),
+    teacher_service: TeacherService = Depends(get_teacher_service),
+    room_service: RoomService = Depends(get_room_service),
+    course_service: CourseService = Depends(get_course_service),
+    schedule_log_service: ScheduleLogService = Depends(get_schedule_log_service),
+    assignment_service: AssignmentService = Depends(get_assignment_service)
+) -> ScheduleService:
+    """
+    Dependency for the main ScheduleService (orchestrator).
+    Injects all other required services into it.
+    """
+    return ScheduleService(
+        group_service=group_service,
+        teacher_service=teacher_service,
+        room_service=room_service,
+        course_service=course_service,
+        schedule_log_service=schedule_log_service,
+        assignment_service=assignment_service
+    )
 
 
 # Security dependencies

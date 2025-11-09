@@ -5,8 +5,7 @@ from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.joins.student_group import StudentGroup
-
-_UNSET = object()
+from app.utils.unset import UNSET
 
 
 class StudentGroupRepository:
@@ -68,10 +67,10 @@ class StudentGroupRepository:
         self,
         student_id: UUID,
         *,
-        group_id: Union[UUID, None, object] = _UNSET,
+        group_id: Union[UUID, None, object] = UNSET,
     ) -> Optional[StudentGroup]:
         update_data = {}
-        if group_id is not _UNSET:
+        if group_id is not UNSET:
             update_data["group_id"] = group_id
 
         if not update_data:

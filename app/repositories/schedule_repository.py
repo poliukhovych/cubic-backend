@@ -5,8 +5,7 @@ from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.scheduling.schedule import Schedule
-
-_UNSET = object()
+from app.utils.unset import UNSET
 
 
 class ScheduleRepository:
@@ -35,9 +34,9 @@ class ScheduleRepository:
         await self._session.refresh(obj)
         return obj
 
-    async def update(self, schedule_id: UUID, label: Union[str, None, object] = _UNSET) -> Optional[Schedule]:
+    async def update(self, schedule_id: UUID, label: Union[str, None, object] = UNSET) -> Optional[Schedule]:
         update_data = {}
-        if label is not _UNSET:
+        if label is not UNSET:
             update_data["label"] = label
 
         if not update_data:
@@ -67,4 +66,3 @@ class ScheduleRepository:
         stmt = select(Schedule.schedule_id).where(Schedule.schedule_id == schedule_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
-

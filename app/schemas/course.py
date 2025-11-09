@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Union
 from uuid import UUID
+from app.utils.unset import UNSET
 
 
 class CourseBase(BaseModel):
@@ -13,8 +14,8 @@ class CourseCreate(CourseBase):
 
 
 class CourseUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=255, description="Course name")
-    duration: Optional[int] = Field(None, gt=0, description="Course duration in hours")
+    name: Union[str, None, object] = Field(UNSET, min_length=1, max_length=255, description="Course name")
+    duration: Union[int, None, object] = Field(UNSET, gt=0, description="Course duration in hours")
 
 
 class CourseResponse(CourseBase):
@@ -22,3 +23,8 @@ class CourseResponse(CourseBase):
     
     class Config:
         from_attributes = True
+
+
+class CourseListResponse(BaseModel):
+    courses: list[CourseResponse] = Field(..., description="List of courses")
+    total: int = Field(..., description="Total number of courses")

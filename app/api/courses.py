@@ -3,17 +3,16 @@ from typing import List
 from uuid import UUID
 from app.services.course_service import CourseService
 from app.core.deps import get_course_service
-from app.schemas.course import CourseCreate, CourseUpdate, CourseResponse
+from app.schemas.course import CourseCreate, CourseUpdate, CourseResponse, CourseListResponse
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[CourseResponse])
+@router.get("/", response_model=CourseListResponse)
 async def get_all_courses(
     course_service: CourseService = Depends(get_course_service)
-) -> List[CourseResponse]:
-    courses = await course_service.get_all_courses()
-    return courses
+) -> CourseListResponse:
+    return await course_service.get_all_courses()
 
 
 @router.get("/{course_id}", response_model=CourseResponse)

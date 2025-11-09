@@ -4,16 +4,21 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.course_repository import CourseRepository
-from app.schemas.course import CourseCreate, CourseUpdate, CourseResponse
+from app.schemas.course import CourseCreate, CourseUpdate, CourseResponse, CourseListResponse
+from app.utils.unset import UNSET
 
 
 class CourseService:
     def __init__(self, session: AsyncSession):
         self._repository = CourseRepository(session)
 
-    async def get_all_courses(self) -> List[CourseResponse]:
+    async def get_all_courses(self) -> CourseListResponse:
         courses = await self._repository.find_all()
-        return [CourseResponse.model_validate(course) for course in courses]
+        total = await self._repository.count()
+        return CourseListResponse(
+            courses=[CourseResponse.model_validate(course) for course in courses],
+            total=total
+        )
 
     async def get_course_by_id(self, course_id: UUID) -> Optional[CourseResponse]:
         course = await self._repository.find_by_id(course_id)
@@ -40,7 +45,7 @@ class CourseService:
         if not await self._repository.exists(course_id):
             return None
         
-        if course_data.name is not None:
+        if course_data.name is not UNSET and course_data.name is not None:
             existing_course = await self._repository.find_by_name(course_data.name)
             if existing_course and existing_course.course_id != course_id:
                 raise ValueError(f"A course with the name '{course_data.name}' already exists.")

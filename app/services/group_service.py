@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.group_repository import GroupRepository
 from app.schemas.group import GroupCreate, GroupUpdate, GroupResponse, GroupListResponse
 from app.db.models.catalog.group import Group
+from app.utils.unset import UNSET
 
 
 class GroupService:
@@ -47,7 +48,7 @@ class GroupService:
         if not existing_group:
             return None
         
-        if group_data.name and group_data.name != existing_group.name:
+        if group_data.name is not UNSET and group_data.name is not None and group_data.name != existing_group.name:
             name_conflict = await self._repository.find_by_name(group_data.name)
             if name_conflict:
                 raise ValueError(f"Group: '{group_data.name}' already exist")
