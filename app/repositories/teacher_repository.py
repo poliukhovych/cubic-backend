@@ -1,10 +1,12 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 import uuid
 
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.people.teacher import Teacher
+
+_UNSET = object()
 
 
 class TeacherRepository:
@@ -49,22 +51,22 @@ class TeacherRepository:
     async def update(
         self,
         teacher_id: uuid.UUID,
-        first_name: Optional[str] = None,
-        last_name: Optional[str] = None,
-        patronymic: Optional[str] = None,
-        confirmed: Optional[bool] = None,
-        user_id: Optional[uuid.UUID] = None,
+        first_name: Union[str, None, object] = _UNSET,
+        last_name: Union[str, None, object] = _UNSET,
+        patronymic: Union[str, None, object] = _UNSET,
+        confirmed: Union[bool, None, object] = _UNSET,
+        user_id: Union[uuid.UUID, None, object] = _UNSET,
     ) -> Optional[Teacher]:
         update_data = {}
-        if first_name is not None:
+        if first_name is not _UNSET:
             update_data["first_name"] = first_name
-        if last_name is not None:
+        if last_name is not _UNSET:
             update_data["last_name"] = last_name
-        if patronymic is not None:
+        if patronymic is not _UNSET:
             update_data["patronymic"] = patronymic
-        if confirmed is not None:
+        if confirmed is not _UNSET:
             update_data["confirmed"] = confirmed
-        if user_id is not None:
+        if user_id is not _UNSET:
             update_data["user_id"] = user_id
 
         if not update_data:

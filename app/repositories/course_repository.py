@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from uuid import UUID
 
 from sqlalchemy import select, delete, update
@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.catalog.course import Course
 from app.db.models.joins.teacher_course import TeacherCourse
+
+_UNSET = object()
 
 
 class CourseRepository:
@@ -44,11 +46,11 @@ class CourseRepository:
         await self._session.refresh(obj)
         return obj
 
-    async def update(self, course_id: UUID, name: Optional[str] = None, duration: Optional[int] = None) -> Optional[Course]:
+    async def update(self, course_id: UUID, name: Union[str, None, object] = _UNSET, duration: Union[int, None, object] = _UNSET) -> Optional[Course]:
         update_data = {}
-        if name is not None:
+        if name is not _UNSET:
             update_data["name"] = name
-        if duration is not None:
+        if duration is not _UNSET:
             update_data["duration"] = duration
         
         if not update_data:
