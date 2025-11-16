@@ -2,12 +2,34 @@ from fastapi import Request, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
 from app.db.session import async_session_maker
-from app.services.course_service import CourseService
-from app.services.room_service import RoomService
-from app.services.schedule_generation_service import ScheduleService
-from app.services.teacher_service import TeacherService
-from app.services.group_service import GroupService
 from sqlalchemy.ext.asyncio import AsyncSession
+
+# --- Import Repositories ---
+from app.repositories.group_repository import GroupRepository
+from app.repositories.teacher_repository import TeacherRepository
+from app.repositories.room_repository import RoomRepository
+from app.repositories.course_repository import CourseRepository
+from app.repositories.schedule_repository import ScheduleRepository
+from app.repositories.assignment_repository import AssignmentRepository
+from app.repositories.timeslot_repository import TimeslotRepository
+from app.repositories.availability_repository import AvailabilityRepository
+from app.repositories.constraint_repository import ConstraintRepository
+
+# --- Import Services ---
+from app.services.group_service import GroupService
+from app.services.teacher_service import TeacherService
+from app.services.room_service import RoomService
+from app.services.course_service import CourseService
+from app.services.schedule_service import ScheduleService
+from app.services.assignment_service import AssignmentService
+from app.services.timeslot_service import TimeslotService
+from app.services.teacher_availability_service import TeacherAvailabilityService
+from app.services.teacher_preference_service import TeacherPreferenceService
+from app.services.group_unavailability_service import GroupUnavailabilityService
+from app.services.group_course_service import GroupCourseService
+from app.services.teacher_course_service import TeacherCourseService
+from app.services.subgroup_constraint_service import SubgroupConstraintService
+from app.services.schedule_generation_service import ScheduleGenerationService
 
 
 async def get_session():
@@ -15,53 +37,158 @@ async def get_session():
         yield session
 
 
-# --- Individual Service Dependencies ---
+# --- Repository Providers ---
 
-async def get_course_service(session: AsyncSession = Depends(get_session)) -> CourseService:
-    return CourseService(session)
-
-async def get_teacher_service(session: AsyncSession = Depends(get_session)) -> TeacherService:
-    return TeacherService(session)
-
-async def get_group_service(session: AsyncSession = Depends(get_session)) -> GroupService:
-    return GroupService(session)
-
-async def get_room_service(session: AsyncSession = Depends(get_session)) -> RoomService:
-    return RoomService(session)
-
-async def get_schedule_log_service(
+def get_group_repository(
     session: AsyncSession = Depends(get_session)
-) -> ScheduleLogService:
-    """Dependency for the ScheduleLogService."""
-    return ScheduleLogService(session)
+) -> GroupRepository:
+    return GroupRepository(session)
 
-async def get_assignment_service(
+def get_teacher_repository(
     session: AsyncSession = Depends(get_session)
+) -> TeacherRepository:
+    return TeacherRepository(session)
+
+def get_room_repository(
+    session: AsyncSession = Depends(get_session)
+) -> RoomRepository:
+    return RoomRepository(session)
+
+def get_course_repository(
+    session: AsyncSession = Depends(get_session)
+) -> CourseRepository:
+    return CourseRepository(session)
+
+def get_schedule_repository(
+    session: AsyncSession = Depends(get_session)
+) -> ScheduleRepository:
+    return ScheduleRepository(session)
+
+def get_assignment_repository(
+    session: AsyncSession = Depends(get_session)
+) -> AssignmentRepository:
+    return AssignmentRepository(session)
+
+def get_timeslot_repository(
+    session: AsyncSession = Depends(get_session)
+) -> TimeslotRepository:
+    return TimeslotRepository(session)
+
+def get_availability_repository(
+    session: AsyncSession = Depends(get_session)
+) -> AvailabilityRepository:
+    return AvailabilityRepository(session)
+
+def get_constraint_repository(
+    session: AsyncSession = Depends(get_session)
+) -> ConstraintRepository:
+    return ConstraintRepository(session)
+
+
+# --- Service Providers ---
+
+def get_group_service(
+    repo: GroupRepository = Depends(get_group_repository)
+) -> GroupService:
+    return GroupService(repo)
+
+def get_teacher_service(
+    repo: TeacherRepository = Depends(get_teacher_repository)
+) -> TeacherService:
+    return TeacherService(repo)
+
+def get_room_service(
+    repo: RoomRepository = Depends(get_room_repository)
+) -> RoomService:
+    return RoomService(repo)
+
+def get_course_service(
+    repo: CourseRepository = Depends(get_course_repository)
+) -> CourseService:
+    return CourseService(repo)
+
+def get_assignment_service(
+    repo: AssignmentRepository = Depends(get_assignment_repository)
 ) -> AssignmentService:
-    """Dependency for the AssignmentService."""
-    return AssignmentService(session)
+    return AssignmentService(repo)
 
+def get_timeslot_service(
+    repo: TimeslotRepository = Depends(get_timeslot_repository)
+) -> TimeslotService:
+    return TimeslotService(repo)
 
-# --- Orchestrator Service Dependency ---
+# Renamed: This is the simple CRUD for the 'schedules' table
+def get_schedule_service(
+    repo: ScheduleRepository = Depends(get_schedule_repository)
+) -> ScheduleService:
+    return ScheduleService(repo)
 
-async def get_schedule_service(
+def get_group_course_service(
+    repo: ConstraintRepository = Depends(get_constraint_repository)
+) -> GroupCourseService:
+    return GroupCourseService(repo)
+
+def get_teacher_course_service(
+    repo: ConstraintRepository = Depends(get_constraint_repository)
+) -> TeacherCourseService:
+    return TeacherCourseService(repo)
+
+def get_subgroup_constraint_service(
+    repo: ConstraintRepository = Depends(get_constraint_repository)
+) -> SubgroupConstraintService:
+    return SubgroupConstraintService(repo)
+
+def get_teacher_preference_service(
+    repo: AvailabilityRepository = Depends(get_availability_repository)
+) -> TeacherPreferenceService:
+    return TeacherPreferenceService(repo)
+
+def get_teacher_availability_service(
+    repo: AvailabilityRepository = Depends(get_availability_repository),
+    timeslot_service: TimeslotService = Depends(get_timeslot_service)
+) -> TeacherAvailabilityService:
+    return TeacherAvailabilityService(repo, timeslot_service)
+
+def get_group_unavailability_service(
+    repo: AvailabilityRepository = Depends(get_availability_repository),
+    timeslot_service: TimeslotService = Depends(get_timeslot_service)
+) -> GroupUnavailabilityService:
+    return GroupUnavailabilityService(repo, timeslot_service)
+
+# --- Orchestrator Provider ---
+
+def get_schedule_generation_service(
+    # Catalog services
     group_service: GroupService = Depends(get_group_service),
     teacher_service: TeacherService = Depends(get_teacher_service),
     room_service: RoomService = Depends(get_room_service),
     course_service: CourseService = Depends(get_course_service),
-    schedule_log_service: ScheduleLogService = Depends(get_schedule_log_service),
+    timeslot_service: TimeslotService = Depends(get_timeslot_service),
+    # Constraint services
+    group_course_service: GroupCourseService = Depends(get_group_course_service),
+    teacher_course_service: TeacherCourseService = Depends(get_teacher_course_service),
+    subgroup_constraint_service: SubgroupConstraintService = Depends(get_subgroup_constraint_service),
+    # Availability services
+    teacher_availability_service: TeacherAvailabilityService = Depends(get_teacher_availability_service),
+    teacher_preference_service: TeacherPreferenceService = Depends(get_teacher_preference_service),
+    group_unavailability_service: GroupUnavailabilityService = Depends(get_group_unavailability_service),
+    # Saving services
+    schedule_service: ScheduleService = Depends(get_schedule_service),
     assignment_service: AssignmentService = Depends(get_assignment_service)
-) -> ScheduleService:
-    """
-    Dependency for the main ScheduleService (orchestrator).
-    Injects all other required services into it.
-    """
-    return ScheduleService(
+) -> ScheduleGenerationService:
+    return ScheduleGenerationService(
         group_service=group_service,
         teacher_service=teacher_service,
         room_service=room_service,
         course_service=course_service,
-        schedule_log_service=schedule_log_service,
+        timeslot_service=timeslot_service,
+        group_course_service=group_course_service,
+        teacher_course_service=teacher_course_service,
+        subgroup_constraint_service=subgroup_constraint_service,
+        teacher_availability_service=teacher_availability_service,
+        teacher_preference_service=teacher_preference_service,
+        group_unavailability_service=group_unavailability_service,
+        schedule_service=schedule_service,
         assignment_service=assignment_service
     )
 

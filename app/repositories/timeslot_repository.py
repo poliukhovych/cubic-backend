@@ -102,4 +102,3 @@ class TimeslotRepository:
         stmt = select(Timeslot.timeslot_id).where(Timeslot.timeslot_id == timeslot_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
-

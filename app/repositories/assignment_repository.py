@@ -119,7 +119,6 @@ class AssignmentRepository:
         await self._session.refresh(obj)
         return obj
 
-    # === METHOD REPLACED ===
     async def bulk_create(
             self,
             assignments: List[AssignmentCreate]

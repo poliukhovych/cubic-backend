@@ -1,9 +1,8 @@
 import uuid
-from typing import List, Optional
+from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 
-# Import the DB enum. Adjust path if necessary.
-from app.db.models.scheduling.assignment import CourseType
+from app.db.models.common_enums import CourseType
 
 
 class MicroserviceAssignment(BaseModel):

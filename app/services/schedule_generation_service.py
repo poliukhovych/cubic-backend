@@ -3,10 +3,9 @@ import os
 import asyncio
 from typing import List, Dict, Any
 
-# --- Import ALL required services for orchestration ---
-
 # Services for 'catalog' data
 from .group_service import GroupService
+from .teacher_preference_service import TeacherPreferenceService
 from .teacher_service import TeacherService
 from .room_service import RoomService
 from .course_service import CourseService
@@ -19,7 +18,7 @@ from .subgroup_constraint_service import SubgroupConstraintService  # TODO: Must
 
 # Services for 'availability' and 'preferences'
 from .teacher_availability_service import TeacherAvailabilityService  # TODO: Must be created
-from .group_availability_service import GroupAvailabilityService  # TODO: Must be created
+from .group_unavailability_service import GroupUnavailabilityService  # TODO: Must be created
 
 # Services for 'saving' the result
 from .schedule_service import ScheduleService  # This is the renamed ScheduleLogService
@@ -54,7 +53,8 @@ class ScheduleGenerationService:
             subgroup_constraint_service: SubgroupConstraintService,
             # Availability services
             teacher_availability_service: TeacherAvailabilityService,
-            group_availability_service: GroupAvailabilityService,
+            teacher_preference_service: TeacherPreferenceService,
+            group_unavailability_service: GroupUnavailabilityService,
             # Saving services
             schedule_service: ScheduleService,
             assignment_service: AssignmentService
@@ -71,7 +71,8 @@ class ScheduleGenerationService:
         self.subgroup_constraint_service = subgroup_constraint_service
         # Availability
         self.teacher_availability_service = teacher_availability_service
-        self.group_availability_service = group_availability_service
+        self.teacher_preference_service = teacher_preference_service
+        self.group_unavailability_service = group_unavailability_service
         # Saving
         self.schedule_service = schedule_service
         self.assignment_service = assignment_service

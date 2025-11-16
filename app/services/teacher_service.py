@@ -1,16 +1,13 @@
 from typing import Optional
 import uuid
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.repositories.teacher_repository import TeacherRepository
 from app.schemas.teacher import TeacherCreate, TeacherUpdate, TeacherResponse, TeacherListResponse
 
 
 class TeacherService:
-    def __init__(self, session: AsyncSession):
-        self._session = session
-        self._repository = TeacherRepository(session)
+    def __init__(self, repo: TeacherRepository):
+        self._repository = repo
 
     async def get_all_teachers(self) -> TeacherListResponse:
         teachers = await self._repository.find_all()
@@ -40,7 +37,7 @@ class TeacherService:
             confirmed=teacher_data.confirmed,
             user_id=teacher_data.user_id
         )
-        await self._session.commit()
+
         return TeacherResponse.model_validate(teacher)
 
     async def update_teacher(self, teacher_id: uuid.UUID, teacher_data: TeacherUpdate) -> Optional[TeacherResponse]:
@@ -52,21 +49,17 @@ class TeacherService:
             confirmed=teacher_data.confirmed,
             user_id=teacher_data.user_id
         )
+
         if teacher:
-            await self._session.commit()
             return TeacherResponse.model_validate(teacher)
         return None
 
     async def delete_teacher(self, teacher_id: uuid.UUID) -> bool:
-        success = await self._repository.delete(teacher_id)
-        if success:
-            await self._session.commit()
-        return success
+        return await self._repository.delete(teacher_id)
 
     async def confirm_teacher(self, teacher_id: uuid.UUID) -> Optional[TeacherResponse]:
         teacher = await self._repository.confirm_teacher(teacher_id)
         if teacher:
-            await self._session.commit()
             return TeacherResponse.model_validate(teacher)
         return None
 
