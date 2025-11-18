@@ -19,10 +19,11 @@ class GroupUpdate(BaseModel):
 
 
 class GroupResponse(GroupBase):
-    group_id: UUID = Field(..., description="Unique group identifier")
+    group_id: UUID = Field(..., alias="groupId", description="Unique group identifier")
     
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class GroupListResponse(BaseModel):

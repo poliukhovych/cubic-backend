@@ -19,10 +19,11 @@ class CourseUpdate(BaseModel):
 
 
 class CourseResponse(CourseBase):
-    course_id: UUID = Field(..., description="Unique course identifier")
+    course_id: UUID = Field(..., alias="courseId", description="Unique course identifier")
     
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class CourseListResponse(BaseModel):

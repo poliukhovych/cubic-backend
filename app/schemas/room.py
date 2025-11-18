@@ -25,11 +25,12 @@ class RoomUpdate(BaseModel):
 
 class RoomResponse(RoomBase):
     """Schema for returning room data from the API."""
-    room_id: uuid.UUID = Field(..., description="Room ID")
+    room_id: uuid.UUID = Field(..., alias="roomId", description="Room ID")
 
     class Config:
         """Pydantic config to allow ORM model mapping."""
         from_attributes = True
+        populate_by_name = True
 
 
 class RoomListResponse(BaseModel):

@@ -6,17 +6,18 @@ from app.db.models.people.user import UserRole
 
 
 class RegistrationRequestOut(BaseModel):
-    request_id: uuid.UUID
-    email: EmailStr
-    first_name: str
-    last_name: str
-    patronymic: Optional[str] = None
-    requested_role: UserRole
-    status: Literal["pending", "approved", "rejected"]
-    created_at: datetime
+    request_id: uuid.UUID = Field(..., alias="requestId")
+    email: EmailStr = Field(...)
+    first_name: str = Field(..., alias="firstName")
+    last_name: str = Field(..., alias="lastName")
+    patronymic: Optional[str] = Field(None)
+    requested_role: UserRole = Field(..., alias="requestedRole")
+    status: Literal["pending", "approved", "rejected"] = Field(...)
+    created_at: datetime = Field(..., alias="createdAt")
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class ApproveRegistrationRequest(BaseModel):

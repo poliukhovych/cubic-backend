@@ -1,6 +1,6 @@
 from typing import Optional, Union
 import uuid
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 from app.utils.unset import UNSET
 
 
@@ -24,11 +24,22 @@ class TeacherUpdate(BaseModel):
 
 
 class TeacherResponse(TeacherBase):
-    teacher_id: uuid.UUID = Field(..., description="Teacher ID")
-    user_id: Optional[uuid.UUID] = Field(None, description="User ID")
+    teacher_id: uuid.UUID = Field(..., alias="teacherId", description="Teacher ID")
+    user_id: Optional[uuid.UUID] = Field(None, alias="userId", description="User ID")
+    first_name: str = Field(..., alias="firstName", min_length=1, max_length=100, description="Name")
+    last_name: str = Field(..., alias="lastName", min_length=1, max_length=100, description="Surname")
+    patronymic: str = Field(..., min_length=1, max_length=100, description="Middle name")
+    confirmed: bool = Field(default=False, description="Is the teacher verified")
+
+    @computed_field
+    @property
+    def full_name(self) -> str:
+        """Computed full name field"""
+        return f"{self.last_name} {self.first_name} {self.patronymic}"
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class TeacherListResponse(BaseModel):

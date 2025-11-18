@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import aliased
@@ -14,6 +14,10 @@ from app.schemas.admin import (
     AdminStudent, AdminStudentListResponse,
     AdminTeacher, AdminTeacherListResponse,
 )
+from app.schemas.student import StudentCreate, StudentUpdate, StudentOut
+from app.repositories.students_repository import StudentRepository
+from app.utils.unset import UNSET
+import uuid
 
 router = APIRouter(prefix="/admin", tags=["Admin People"])
 
@@ -69,6 +73,7 @@ async def list_students(
             patronymic=s.patronymic,
             confirmed=s.confirmed,
             email=email,
+            group_id=s.group_id,
         ))
 
     return AdminStudentListResponse(students=items, total=total)
@@ -103,6 +108,121 @@ async def list_teachers(
             patronymic=t.patronymic,
             confirmed=t.confirmed,
             email=email,
+            user_id=t.user_id,
         ))
 
     return AdminTeacherListResponse(teachers=items, total=total)
+
+
+@router.post("/students", response_model=StudentOut, status_code=status.HTTP_201_CREATED)
+async def create_student(
+    student_data: StudentCreate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Create a new student (admin only)."""
+    student_repo = StudentRepository(db)
+    
+    # Check if user_id exists and is not already linked to another student
+    if student_data.user_id:
+        existing = await student_repo.find_by_user_id(student_data.user_id)
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"User {student_data.user_id} is already linked to a student"
+            )
+    
+    student = await student_repo.create(
+        first_name=student_data.first_name,
+        last_name=student_data.last_name,
+        patronymic=student_data.patronymic,
+        confirmed=student_data.confirmed,
+        user_id=student_data.user_id,
+        group_id=student_data.group_id,
+    )
+    await db.commit()
+    
+    return StudentOut.model_validate(student)
+
+
+@router.put("/students/{student_id}", response_model=StudentOut)
+async def update_student(
+    student_id: uuid.UUID,
+    student_data: StudentUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Update a student (admin only)."""
+    student_repo = StudentRepository(db)
+    
+    # Check if student exists
+    existing = await student_repo.find_by_id(student_id)
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Student {student_id} not found"
+        )
+    
+    # Prepare update data using UNSET pattern
+    update_kwargs = {}
+    
+    if student_data.first_name is not UNSET:
+        update_kwargs["first_name"] = student_data.first_name
+    if student_data.last_name is not UNSET:
+        update_kwargs["last_name"] = student_data.last_name
+    if student_data.patronymic is not UNSET:
+        update_kwargs["patronymic"] = student_data.patronymic
+    if student_data.confirmed is not UNSET:
+        update_kwargs["confirmed"] = student_data.confirmed
+    if student_data.user_id is not UNSET:
+        # Check if user_id is being changed to another user that's already linked
+        if student_data.user_id is not None:
+            existing_with_user = await student_repo.find_by_user_id(student_data.user_id)
+            if existing_with_user and existing_with_user.student_id != student_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"User {student_data.user_id} is already linked to another student"
+                )
+        update_kwargs["user_id"] = student_data.user_id
+    if student_data.group_id is not UNSET:
+        update_kwargs["group_id"] = student_data.group_id
+    
+    updated_student = await student_repo.update(student_id, **update_kwargs)
+    await db.commit()
+    
+    if not updated_student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Student {student_id} not found"
+        )
+    
+    return StudentOut.model_validate(updated_student)
+
+
+@router.delete("/students/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_student(
+    student_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Delete a student (admin only)."""
+    student_repo = StudentRepository(db)
+    
+    # Check if student exists
+    existing = await student_repo.find_by_id(student_id)
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Student {student_id} not found"
+        )
+    
+    deleted = await student_repo.delete(student_id)
+    await db.commit()
+    
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Student {student_id} not found"
+        )
+    
+    return None

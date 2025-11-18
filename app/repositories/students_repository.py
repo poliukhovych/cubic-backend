@@ -49,6 +49,7 @@ class StudentRepository:
             patronymic: str | None = None,
             confirmed: bool = False,
             user_id: Optional[UUID] = None,
+            group_id: Optional[UUID] = None,
     ) -> Student:
         obj = Student(
             first_name=first_name,
@@ -56,6 +57,7 @@ class StudentRepository:
             patronymic=patronymic,
             confirmed=confirmed,
             user_id=user_id,
+            group_id=group_id,
         )
         self._session.add(obj)
         await self._session.flush()
@@ -71,6 +73,7 @@ class StudentRepository:
             patronymic: str | None = None,
             confirmed: bool | None = None,
             user_id: Optional[UUID] = None,
+            group_id: Optional[UUID] = None,
     ) -> Optional[Student]:
         update_data = {}
         if first_name is not None:
@@ -83,6 +86,8 @@ class StudentRepository:
             update_data["confirmed"] = confirmed
         if user_id is not None:
             update_data["user_id"] = user_id
+        if group_id is not None:
+            update_data["group_id"] = group_id
 
         if not update_data:
             return await self.find_by_id(student_id)

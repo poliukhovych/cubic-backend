@@ -24,12 +24,13 @@ class ScheduleUpdate(BaseModel):
 
 class ScheduleResponse(ScheduleBase):
     """Schema for returning schedule data from the API."""
-    schedule_id: uuid.UUID = Field(..., description="Schedule ID")
-    created_at: datetime = Field(..., description="Creation timestamp")
+    schedule_id: uuid.UUID = Field(..., alias="scheduleId", description="Schedule ID")
+    created_at: datetime = Field(..., alias="createdAt", description="Creation timestamp")
 
     class Config:
         """Pydantic config to allow ORM model mapping."""
         from_attributes = True
+        populate_by_name = True
 
 
 class ScheduleListResponse(BaseModel):
