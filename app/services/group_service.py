@@ -37,9 +37,17 @@ class GroupService:
         if existing_group:
             raise ValueError(f"Group: '{group_data.name}' already exist")
         
+        # Validate course range based on type
+        if group_data.type == "bachelor" and not (1 <= group_data.course <= 4):
+            raise ValueError("Bachelor course must be between 1 and 4")
+        if group_data.type == "master" and not (1 <= group_data.course <= 2):
+            raise ValueError("Master course must be between 1 and 2")
+        
         group = await self.repo.create(
             name=group_data.name,
-            size=group_data.size
+            size=group_data.size,
+            type=group_data.type,
+            course=group_data.course
         )
         return GroupResponse.model_validate(group)
 
@@ -53,10 +61,21 @@ class GroupService:
             if name_conflict:
                 raise ValueError(f"Group: '{group_data.name}' already exist")
         
+        # Validate course range based on type (use existing type if not updating)
+        final_type = group_data.type if group_data.type is not UNSET else existing_group.type
+        final_course = group_data.course if group_data.course is not UNSET else existing_group.course
+        
+        if final_type == "bachelor" and not (1 <= final_course <= 4):
+            raise ValueError("Bachelor course must be between 1 and 4")
+        if final_type == "master" and not (1 <= final_course <= 2):
+            raise ValueError("Master course must be between 1 and 2")
+        
         updated_group = await self.repo.update(
             group_id=group_id,
             name=group_data.name,
-            size=group_data.size
+            size=group_data.size,
+            type=group_data.type,
+            course=group_data.course
         )
         
         if not updated_group:

@@ -125,7 +125,7 @@ async def google_auth(
                         first_name=user.first_name,
                         last_name=user.last_name,
                         patronymic="",
-                        confirmed=False
+                        status="pending"
                     )
                     db.add(teacher)
             
@@ -139,7 +139,7 @@ async def google_auth(
                         first_name=user.first_name,
                         last_name=user.last_name,
                         patronymic=None,
-                        confirmed=False
+                        status="pending"
                     )
                     db.add(student)
             
@@ -271,7 +271,7 @@ async def select_role(
             first_name=current_user.first_name,
             last_name=current_user.last_name,
             patronymic="",
-            confirmed=False
+            status="pending"
         )
         db.add(teacher)
     
@@ -281,7 +281,7 @@ async def select_role(
             first_name=current_user.first_name,
             last_name=current_user.last_name,
             patronymic=None,
-            confirmed=False
+            status="pending"
         )
         db.add(student)
     

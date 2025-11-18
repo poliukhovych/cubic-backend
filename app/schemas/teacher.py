@@ -8,7 +8,7 @@ class TeacherBase(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=100, description="Name")
     last_name: str = Field(..., min_length=1, max_length=100, description="Surname")
     patronymic: str = Field(..., min_length=1, max_length=100, description="Middle name")
-    confirmed: bool = Field(default=False, description="Is the teacher verified")
+    status: str = Field(default="pending", description="Teacher status: pending, active, or inactive")
 
 
 class TeacherCreate(TeacherBase):
@@ -19,7 +19,7 @@ class TeacherUpdate(BaseModel):
     first_name: Union[str, None, object] = Field(UNSET, min_length=1, max_length=100, description="Name")
     last_name: Union[str, None, object] = Field(UNSET, min_length=1, max_length=100, description="Surname")
     patronymic: Union[str, None, object] = Field(UNSET, min_length=1, max_length=100, description="Middle name")
-    confirmed: Union[bool, None, object] = Field(UNSET, description="Is the teacher verified?")
+    status: Union[str, None, object] = Field(UNSET, description="Teacher status: pending, active, or inactive")
     user_id: Union[uuid.UUID, None, object] = Field(UNSET, description="User ID")
 
 
@@ -29,7 +29,7 @@ class TeacherResponse(TeacherBase):
     first_name: str = Field(..., alias="firstName", min_length=1, max_length=100, description="Name")
     last_name: str = Field(..., alias="lastName", min_length=1, max_length=100, description="Surname")
     patronymic: str = Field(..., min_length=1, max_length=100, description="Middle name")
-    confirmed: bool = Field(default=False, description="Is the teacher verified")
+    status: str = Field(..., description="Teacher status: pending, active, or inactive")
 
     @computed_field
     @property

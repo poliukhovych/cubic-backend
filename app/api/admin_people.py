@@ -15,7 +15,9 @@ from app.schemas.admin import (
     AdminTeacher, AdminTeacherListResponse,
 )
 from app.schemas.student import StudentCreate, StudentUpdate, StudentOut
+from app.schemas.teacher import TeacherResponse
 from app.repositories.students_repository import StudentRepository
+from app.repositories.teacher_repository import TeacherRepository
 from app.utils.unset import UNSET
 import uuid
 
@@ -28,16 +30,16 @@ async def get_admin_stats(
     _: User = Depends(get_current_admin),
 ):
     students_total = await db.execute(select(func.count()).select_from(Student))
-    students_confirmed = await db.execute(select(func.count()).select_from(Student).where(Student.confirmed == True))
+    students_active = await db.execute(select(func.count()).select_from(Student).where(Student.status == "active"))
     teachers_total = await db.execute(select(func.count()).select_from(Teacher))
-    teachers_confirmed = await db.execute(select(func.count()).select_from(Teacher).where(Teacher.confirmed == True))
+    teachers_active = await db.execute(select(func.count()).select_from(Teacher).where(Teacher.status == "active"))
     courses_total = await db.execute(select(func.count()).select_from(Course))
 
     return AdminStats(
         students_total=students_total.scalar_one(),
-        students_confirmed=students_confirmed.scalar_one(),
+        students_active=students_active.scalar_one(),
         teachers_total=teachers_total.scalar_one(),
-        teachers_confirmed=teachers_confirmed.scalar_one(),
+        teachers_active=teachers_active.scalar_one(),
         courses_total=courses_total.scalar_one(),
     )
 
@@ -71,7 +73,7 @@ async def list_students(
             first_name=s.first_name,
             last_name=s.last_name,
             patronymic=s.patronymic,
-            confirmed=s.confirmed,
+            status=s.status,
             email=email,
             group_id=s.group_id,
         ))
@@ -106,7 +108,7 @@ async def list_teachers(
             first_name=t.first_name,
             last_name=t.last_name,
             patronymic=t.patronymic,
-            confirmed=t.confirmed,
+            status=t.status,
             email=email,
             user_id=t.user_id,
         ))
@@ -136,7 +138,7 @@ async def create_student(
         first_name=student_data.first_name,
         last_name=student_data.last_name,
         patronymic=student_data.patronymic,
-        confirmed=student_data.confirmed,
+        status=student_data.status,
         user_id=student_data.user_id,
         group_id=student_data.group_id,
     )
@@ -172,8 +174,8 @@ async def update_student(
         update_kwargs["last_name"] = student_data.last_name
     if student_data.patronymic is not UNSET:
         update_kwargs["patronymic"] = student_data.patronymic
-    if student_data.confirmed is not UNSET:
-        update_kwargs["confirmed"] = student_data.confirmed
+    if student_data.status is not UNSET:
+        update_kwargs["status"] = student_data.status
     if student_data.user_id is not UNSET:
         # Check if user_id is being changed to another user that's already linked
         if student_data.user_id is not None:
@@ -226,3 +228,83 @@ async def delete_student(
         )
     
     return None
+
+
+@router.patch("/students/{student_id}/activate", response_model=StudentOut)
+async def activate_student(
+    student_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Activate a student (set status to 'active')."""
+    student_repo = StudentRepository(db)
+    
+    student = await student_repo.activate_student(student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Student {student_id} not found"
+        )
+    
+    await db.commit()
+    return StudentOut.model_validate(student)
+
+
+@router.patch("/students/{student_id}/deactivate", response_model=StudentOut)
+async def deactivate_student(
+    student_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Deactivate a student (set status to 'inactive')."""
+    student_repo = StudentRepository(db)
+    
+    student = await student_repo.deactivate_student(student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Student {student_id} not found"
+        )
+    
+    await db.commit()
+    return StudentOut.model_validate(student)
+
+
+@router.patch("/teachers/{teacher_id}/activate", response_model=TeacherResponse)
+async def activate_teacher(
+    teacher_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Activate a teacher (set status to 'active')."""
+    teacher_repo = TeacherRepository(db)
+    
+    teacher = await teacher_repo.activate_teacher(teacher_id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Teacher {teacher_id} not found"
+        )
+    
+    await db.commit()
+    return TeacherResponse.model_validate(teacher)
+
+
+@router.patch("/teachers/{teacher_id}/deactivate", response_model=TeacherResponse)
+async def deactivate_teacher(
+    teacher_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """Deactivate a teacher (set status to 'inactive')."""
+    teacher_repo = TeacherRepository(db)
+    
+    teacher = await teacher_repo.deactivate_teacher(teacher_id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Teacher {teacher_id} not found"
+        )
+    
+    await db.commit()
+    return TeacherResponse.model_validate(teacher)

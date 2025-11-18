@@ -32,7 +32,7 @@ class TeacherRepository:
         first_name: str,
         last_name: str,
         patronymic: str,
-        confirmed: bool = False,
+        status: str = "pending",
         user_id: Optional[uuid.UUID] = None,
     ) -> Teacher:
         obj = Teacher(
@@ -40,7 +40,7 @@ class TeacherRepository:
             first_name=first_name,
             last_name=last_name,
             patronymic=patronymic,
-            confirmed=confirmed,
+            status=status,
         )
         self._session.add(obj)
         await self._session.flush()
@@ -53,7 +53,7 @@ class TeacherRepository:
         first_name: Union[str, None, object] = UNSET,
         last_name: Union[str, None, object] = UNSET,
         patronymic: Union[str, None, object] = UNSET,
-        confirmed: Union[bool, None, object] = UNSET,
+        status: Union[str, None, object] = UNSET,
         user_id: Union[uuid.UUID, None, object] = UNSET,
     ) -> Optional[Teacher]:
         update_data = {}
@@ -63,8 +63,8 @@ class TeacherRepository:
             update_data["last_name"] = last_name
         if patronymic is not UNSET:
             update_data["patronymic"] = patronymic
-        if confirmed is not UNSET:
-            update_data["confirmed"] = confirmed
+        if status is not UNSET:
+            update_data["status"] = status
         if user_id is not UNSET:
             update_data["user_id"] = user_id
 
@@ -88,8 +88,11 @@ class TeacherRepository:
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
 
-    async def confirm_teacher(self, teacher_id: uuid.UUID) -> Optional[Teacher]:
-        return await self.update(teacher_id, confirmed=True)
+    async def activate_teacher(self, teacher_id: uuid.UUID) -> Optional[Teacher]:
+        return await self.update(teacher_id, status="active")
+
+    async def deactivate_teacher(self, teacher_id: uuid.UUID) -> Optional[Teacher]:
+        return await self.update(teacher_id, status="inactive")
 
     async def count(self) -> int:
         """Counts the total number of teachers."""

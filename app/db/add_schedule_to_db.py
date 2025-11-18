@@ -83,7 +83,7 @@ def get_hardcoded_data():
             first_name="Іван",
             last_name="Петренко",
             patronymic="Олександрович",
-            confirmed=True
+            status="active"
         ),
         Teacher(
             teacher_id=teacher2_id,
@@ -91,7 +91,7 @@ def get_hardcoded_data():
             first_name="Марія",
             last_name="Коваленко",
             patronymic="Володимирівна",
-            confirmed=True
+            status="active"
         ),
         Teacher(
             teacher_id=teacher3_id,
@@ -99,7 +99,7 @@ def get_hardcoded_data():
             first_name="Олексій",
             last_name="Сидоренко",
             patronymic="Михайлович",
-            confirmed=True
+            status="active"
         ),
     ]
     

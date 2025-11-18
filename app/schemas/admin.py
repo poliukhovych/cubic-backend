@@ -5,9 +5,9 @@ from pydantic import BaseModel, EmailStr, Field, computed_field
 
 class AdminStats(BaseModel):
     students_total: int = Field(..., alias="studentsTotal", description="Total number of students")
-    students_confirmed: int = Field(..., alias="studentsConfirmed", description="Number of confirmed students")
+    students_active: int = Field(..., alias="studentsActive", description="Number of active students")
     teachers_total: int = Field(..., alias="teachersTotal", description="Total number of teachers")
-    teachers_confirmed: int = Field(..., alias="teachersConfirmed", description="Number of confirmed teachers")
+    teachers_active: int = Field(..., alias="teachersActive", description="Number of active teachers")
     courses_total: int = Field(..., alias="coursesTotal", description="Total number of courses")
     
     class Config:
@@ -19,7 +19,7 @@ class AdminStudent(BaseModel):
     first_name: str = Field(..., alias="firstName")
     last_name: str = Field(..., alias="lastName")
     patronymic: Optional[str] = Field(None)
-    confirmed: bool = Field(...)
+    status: str = Field(..., description="Student status: pending, active, or inactive")
     email: Optional[EmailStr] = Field(None)
     group_id: Optional[uuid.UUID] = Field(None, alias="groupId")
 
@@ -41,7 +41,7 @@ class AdminTeacher(BaseModel):
     first_name: str = Field(..., alias="firstName")
     last_name: str = Field(..., alias="lastName")
     patronymic: Optional[str] = Field(None)
-    confirmed: bool = Field(...)
+    status: str = Field(..., description="Teacher status: pending, active, or inactive")
     email: Optional[EmailStr] = Field(None)
     user_id: Optional[uuid.UUID] = Field(None, alias="userId")
 

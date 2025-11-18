@@ -43,23 +43,27 @@ class TestGroupServiceSimple:
     def test_group_create_schema_validation(self):
         """Test GroupCreate schema validation"""
         # Valid data
-        valid_data = GroupCreate(name="Test Group", size=30)
+        valid_data = GroupCreate(name="Test Group", size=30, type="bachelor", course=1)
         assert valid_data.name == "Test Group"
         assert valid_data.size == 30
+        assert valid_data.type == "bachelor"
+        assert valid_data.course == 1
 
         # Invalid data - should raise validation error
         with pytest.raises(ValueError):
-            GroupCreate(name="", size=30)  # Empty name
+            GroupCreate(name="", size=30, type="bachelor", course=1)  # Empty name
 
         with pytest.raises(ValueError):
-            GroupCreate(name="Test Group", size=0)  # Invalid size
+            GroupCreate(name="Test Group", size=0, type="bachelor", course=1)  # Invalid size
 
     def test_group_update_schema_validation(self):
         """Test GroupUpdate schema validation"""
         # Valid data
-        valid_data = GroupUpdate(name="Updated Group", size=25)
+        valid_data = GroupUpdate(name="Updated Group", size=25, type="master", course=2)
         assert valid_data.name == "Updated Group"
         assert valid_data.size == 25
+        assert valid_data.type == "master"
+        assert valid_data.course == 2
 
         # Partial update - should work
         partial_data = GroupUpdate(name="Updated Group")
@@ -72,8 +76,12 @@ class TestGroupServiceSimple:
         response = GroupResponse(
             group_id=group_id,
             name="Test Group",
-            size=30
+            size=30,
+            type="bachelor",
+            course=3
         )
         assert response.group_id == group_id
         assert response.name == "Test Group"
         assert response.size == 30
+        assert response.type == "bachelor"
+        assert response.course == 3

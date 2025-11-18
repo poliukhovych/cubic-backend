@@ -41,19 +41,30 @@ class GroupRepository:
         result = await self._session.execute(stmt)
         return list(result.scalars().unique().all())
 
-    async def create(self, name: str, size: int) -> Group:
-        obj = Group(name=name, size=size)
+    async def create(self, name: str, size: int, type: str, course: int) -> Group:
+        obj = Group(name=name, size=size, type=type, course=course)
         self._session.add(obj)
         await self._session.flush()
         await self._session.refresh(obj)
         return obj
 
-    async def update(self, group_id: UUID, name: Union[str, None, object] = UNSET, size: Union[int, None, object] = UNSET) -> Optional[Group]:
+    async def update(
+        self, 
+        group_id: UUID, 
+        name: Union[str, None, object] = UNSET, 
+        size: Union[int, None, object] = UNSET,
+        type: Union[str, None, object] = UNSET,
+        course: Union[int, None, object] = UNSET
+    ) -> Optional[Group]:
         update_data = {}
         if name is not UNSET:
             update_data["name"] = name
         if size is not UNSET:
             update_data["size"] = size
+        if type is not UNSET:
+            update_data["type"] = type
+        if course is not UNSET:
+            update_data["course"] = course
         
         if not update_data:
             return await self.find_by_id(group_id)

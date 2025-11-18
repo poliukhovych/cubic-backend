@@ -11,6 +11,7 @@ from app.db.models.people.student import Student
 from app.db.models.people.registration_request import RegistrationRequest, RegistrationStatus
 from app.schemas.registration import (
     RegistrationRequestOut,
+    UpdateRegistrationRequest,
     ApproveRegistrationRequest,
     RejectRegistrationRequest,
 )
@@ -29,6 +30,45 @@ async def list_registration_requests(
         stmt = stmt.where(RegistrationRequest.status == status_filter)
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+@router.put("/{request_id}", response_model=RegistrationRequestOut)
+async def update_registration_request(
+    request_id: str,
+    body: UpdateRegistrationRequest,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """
+    Update registration request before approval.
+    Allows admin to modify role, notes, and link to groups/subjects.
+    """
+    # Load request
+    stmt = select(RegistrationRequest).where(RegistrationRequest.request_id == request_id)
+    result = await db.execute(stmt)
+    reg = result.scalar_one_or_none()
+    if not reg:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+    
+    # Only allow updates for pending requests
+    if reg.status != RegistrationStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Can only update pending requests"
+        )
+    
+    # Update fields if provided
+    update_data = body.model_dump(exclude_unset=True, by_alias=False)
+    
+    for field, value in update_data.items():
+        if hasattr(reg, field) and value is not None:
+            setattr(reg, field, value)
+    
+    reg.updated_at = datetime.now(timezone.utc)
+    
+    await db.commit()
+    await db.refresh(reg)
+    return reg
 
 
 @router.patch("/{request_id}/approve", response_model=RegistrationRequestOut)
@@ -81,11 +121,11 @@ async def approve_registration_request(
                 first_name=user.first_name,
                 last_name=user.last_name,
                 patronymic=user.patronymic or "",
-                confirmed=True,
+                status="active",
             )
             db.add(teacher)
         else:
-            teacher.confirmed = True
+            teacher.status = "active"
 
     if final_role == UserRole.STUDENT:
         s_stmt = select(Student).where(Student.user_id == user.user_id)
@@ -97,11 +137,11 @@ async def approve_registration_request(
                 first_name=user.first_name,
                 last_name=user.last_name,
                 patronymic=user.patronymic,
-                confirmed=True,
+                status="active",
             )
             db.add(student)
         else:
-            student.confirmed = True
+            student.status = "active"
 
     # Update request status
     reg.status = RegistrationStatus.APPROVED

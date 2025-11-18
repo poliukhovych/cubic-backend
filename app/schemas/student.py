@@ -10,7 +10,7 @@ class StudentBase(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=100, description="Student first name")
     last_name: str = Field(..., min_length=1, max_length=100, description="Student last name")
     patronymic: Optional[str] = Field(None, min_length=1, max_length=100, description="Student patronymic")
-    confirmed: bool = Field(default=False, description="Is the student verified")
+    status: str = Field(default="pending", description="Student status: pending, active, or inactive")
 
 
 class StudentCreate(StudentBase):
@@ -24,7 +24,7 @@ class StudentUpdate(BaseModel):
     first_name: Union[str, None, object] = Field(UNSET, min_length=1, max_length=100, description="Student first name")
     last_name: Union[str, None, object] = Field(UNSET, min_length=1, max_length=100, description="Student last name")
     patronymic: Union[str, None, object] = Field(UNSET, min_length=1, max_length=100, description="Student patronymic")
-    confirmed: Union[bool, None, object] = Field(UNSET, description="Is the student verified")
+    status: Union[str, None, object] = Field(UNSET, description="Student status: pending, active, or inactive")
     user_id: Union[uuid.UUID, None, object] = Field(UNSET, description="User ID")
     group_id: Union[uuid.UUID, None, object] = Field(UNSET, description="Group ID")
 
@@ -37,7 +37,7 @@ class StudentOut(BaseModel):
     first_name: str = Field(..., alias="firstName")
     last_name: str = Field(..., alias="lastName")
     patronymic: str | None = Field(None)
-    confirmed: bool = Field(...)
+    status: str = Field(..., description="Student status: pending, active, or inactive")
     group_id: uuid.UUID | None = Field(None, alias="groupId")
     user_id: uuid.UUID | None = Field(None, alias="userId")
 

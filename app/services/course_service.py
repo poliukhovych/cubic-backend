@@ -15,20 +15,61 @@ class CourseService:
     async def get_all_courses(self) -> CourseListResponse:
         courses = await self.repo.find_all()
         total = await self.repo.count()
-        return CourseListResponse(
-            courses=[CourseResponse.model_validate(course) for course in courses],
-            total=total
-        )
+        
+        # Build course responses with relationships
+        course_responses = []
+        for course in courses:
+            group_ids = await self.repo.get_group_ids_for_course(course.course_id)
+            teacher_ids = await self.repo.get_teacher_ids_for_course(course.course_id)
+            
+            course_dict = {
+                "course_id": course.course_id,
+                "name": course.name,
+                "code": course.code,
+                "duration": course.duration,
+                "group_ids": group_ids,
+                "teacher_ids": teacher_ids
+            }
+            course_responses.append(CourseResponse.model_validate(course_dict))
+        
+        return CourseListResponse(courses=course_responses, total=total)
 
     async def get_course_by_id(self, course_id: UUID) -> Optional[CourseResponse]:
         course = await self.repo.find_by_id(course_id)
         if course:
-            return CourseResponse.model_validate(course)
+            group_ids = await self.repo.get_group_ids_for_course(course.course_id)
+            teacher_ids = await self.repo.get_teacher_ids_for_course(course.course_id)
+            
+            course_dict = {
+                "course_id": course.course_id,
+                "name": course.name,
+                "code": course.code,
+                "duration": course.duration,
+                "group_ids": group_ids,
+                "teacher_ids": teacher_ids
+            }
+            return CourseResponse.model_validate(course_dict)
         return None
 
     async def get_courses_by_teacher_id(self, teacher_id: UUID) -> List[CourseResponse]:
         courses = await self.repo.find_by_teacher_id(teacher_id)
-        return [CourseResponse.model_validate(course) for course in courses]
+        
+        course_responses = []
+        for course in courses:
+            group_ids = await self.repo.get_group_ids_for_course(course.course_id)
+            teacher_ids = await self.repo.get_teacher_ids_for_course(course.course_id)
+            
+            course_dict = {
+                "course_id": course.course_id,
+                "name": course.name,
+                "code": course.code,
+                "duration": course.duration,
+                "group_ids": group_ids,
+                "teacher_ids": teacher_ids
+            }
+            course_responses.append(CourseResponse.model_validate(course_dict))
+        
+        return course_responses
 
     async def create_course(self, course_data: CourseCreate) -> CourseResponse:
         existing_course = await self.repo.find_by_name(course_data.name)
@@ -37,9 +78,23 @@ class CourseService:
         
         course = await self.repo.create(
             name=course_data.name,
+            code=course_data.code,
             duration=course_data.duration
         )
-        return CourseResponse.model_validate(course)
+        
+        # Get relationships (will be empty for new course)
+        group_ids = await self.repo.get_group_ids_for_course(course.course_id)
+        teacher_ids = await self.repo.get_teacher_ids_for_course(course.course_id)
+        
+        course_dict = {
+            "course_id": course.course_id,
+            "name": course.name,
+            "code": course.code,
+            "duration": course.duration,
+            "group_ids": group_ids,
+            "teacher_ids": teacher_ids
+        }
+        return CourseResponse.model_validate(course_dict)
 
     async def update_course(self, course_id: UUID, course_data: CourseUpdate) -> Optional[CourseResponse]:
         if not await self.repo.exists(course_id):
@@ -50,14 +105,35 @@ class CourseService:
             if existing_course and existing_course.course_id != course_id:
                 raise ValueError(f"A course with the name '{course_data.name}' already exists.")
         
+        # Prepare update data including code
+        update_data = {}
+        if course_data.name is not UNSET:
+            update_data["name"] = course_data.name
+        if course_data.code is not UNSET:
+            update_data["code"] = course_data.code
+        if course_data.duration is not UNSET:
+            update_data["duration"] = course_data.duration
+        
         updated_course = await self.repo.update(
             course_id=course_id,
-            name=course_data.name,
-            duration=course_data.duration
+            name=course_data.name if course_data.name is not UNSET else UNSET,
+            code=course_data.code if course_data.code is not UNSET else UNSET,
+            duration=course_data.duration if course_data.duration is not UNSET else UNSET
         )
         
         if updated_course:
-            return CourseResponse.model_validate(updated_course)
+            group_ids = await self.repo.get_group_ids_for_course(updated_course.course_id)
+            teacher_ids = await self.repo.get_teacher_ids_for_course(updated_course.course_id)
+            
+            course_dict = {
+                "course_id": updated_course.course_id,
+                "name": updated_course.name,
+                "code": updated_course.code,
+                "duration": updated_course.duration,
+                "group_ids": group_ids,
+                "teacher_ids": teacher_ids
+            }
+            return CourseResponse.model_validate(course_dict)
         return None
 
     async def delete_course(self, course_id: UUID) -> bool:

@@ -34,7 +34,8 @@ class TestTeacherServiceSimple:
             'update_teacher',
             'delete_teacher',
             'get_all_teachers',
-            'confirm_teacher'
+            'activate_teacher',
+            'deactivate_teacher'
         ]
         
         for method_name in required_methods:
@@ -47,12 +48,12 @@ class TestTeacherServiceSimple:
             first_name="John",
             last_name="Doe",
             patronymic="Smith",
-            confirmed=False
+            status="pending"
         )
         assert valid_data.first_name == "John"
         assert valid_data.last_name == "Doe"
         assert valid_data.patronymic == "Smith"
-        assert valid_data.confirmed is False
+        assert valid_data.status == "pending"
 
         # Valid data with user_id
         user_id = uuid4()
@@ -60,11 +61,11 @@ class TestTeacherServiceSimple:
             first_name="Jane",
             last_name="Smith",
             patronymic="Doe",
-            confirmed=True,
+            status="active",
             user_id=user_id
         )
         assert valid_data_with_user.user_id == user_id
-        assert valid_data_with_user.confirmed is True
+        assert valid_data_with_user.status == "active"
 
         # Invalid data - should raise validation error
         with pytest.raises(ValueError):
@@ -84,11 +85,12 @@ class TestTeacherServiceSimple:
     def test_teacher_update_schema_validation(self):
         """Test TeacherUpdate schema validation"""
         # Valid partial update
+        from app.utils.unset import UNSET
         partial_update = TeacherUpdate(first_name="Jane")
         assert partial_update.first_name == "Jane"
-        assert partial_update.last_name is None
-        assert partial_update.patronymic is None
-        assert partial_update.confirmed is None
+        assert partial_update.last_name is UNSET
+        assert partial_update.patronymic is UNSET
+        assert partial_update.status is UNSET
 
         # Valid full update
         user_id = uuid4()
@@ -96,13 +98,13 @@ class TestTeacherServiceSimple:
             first_name="Jane",
             last_name="Smith",
             patronymic="Doe",
-            confirmed=True,
+            status="active",
             user_id=user_id
         )
         assert full_update.first_name == "Jane"
         assert full_update.last_name == "Smith"
         assert full_update.patronymic == "Doe"
-        assert full_update.confirmed is True
+        assert full_update.status == "active"
         assert full_update.user_id == user_id
 
         # Invalid data - should raise validation error
@@ -119,14 +121,14 @@ class TestTeacherServiceSimple:
             first_name="John",
             last_name="Doe",
             patronymic="Smith",
-            confirmed=True,
+            status="active",
             user_id=user_id
         )
         assert response.teacher_id == teacher_id
         assert response.first_name == "John"
         assert response.last_name == "Doe"
         assert response.patronymic == "Smith"
-        assert response.confirmed is True
+        assert response.status == "active"
         assert response.user_id == user_id
 
         # Response without user_id
@@ -135,11 +137,11 @@ class TestTeacherServiceSimple:
             first_name="Jane",
             last_name="Smith",
             patronymic="Doe",
-            confirmed=False,
+            status="pending",
             user_id=None
         )
         assert response_no_user.user_id is None
-        assert response_no_user.confirmed is False
+        assert response_no_user.status == "pending"
 
     def test_teacher_list_response_schema_validation(self):
         """Test TeacherListResponse schema validation"""
@@ -152,7 +154,7 @@ class TestTeacherServiceSimple:
                 first_name="John",
                 last_name="Doe",
                 patronymic="Smith",
-                confirmed=False,
+                status="pending",
                 user_id=None
             ),
             TeacherResponse(
@@ -160,7 +162,7 @@ class TestTeacherServiceSimple:
                 first_name="Jane",
                 last_name="Smith",
                 patronymic="Doe",
-                confirmed=True,
+                status="active",
                 user_id=None
             )
         ]

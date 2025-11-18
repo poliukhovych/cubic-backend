@@ -34,7 +34,7 @@ class TeacherService:
             first_name=teacher_data.first_name,
             last_name=teacher_data.last_name,
             patronymic=teacher_data.patronymic,
-            confirmed=teacher_data.confirmed,
+            status=teacher_data.status,
             user_id=teacher_data.user_id
         )
 
@@ -46,7 +46,7 @@ class TeacherService:
             first_name=teacher_data.first_name,
             last_name=teacher_data.last_name,
             patronymic=teacher_data.patronymic,
-            confirmed=teacher_data.confirmed,
+            status=teacher_data.status,
             user_id=teacher_data.user_id
         )
 
@@ -57,8 +57,14 @@ class TeacherService:
     async def delete_teacher(self, teacher_id: uuid.UUID) -> bool:
         return await self._repository.delete(teacher_id)
 
-    async def confirm_teacher(self, teacher_id: uuid.UUID) -> Optional[TeacherResponse]:
-        teacher = await self._repository.confirm_teacher(teacher_id)
+    async def activate_teacher(self, teacher_id: uuid.UUID) -> Optional[TeacherResponse]:
+        teacher = await self._repository.activate_teacher(teacher_id)
+        if teacher:
+            return TeacherResponse.model_validate(teacher)
+        return None
+
+    async def deactivate_teacher(self, teacher_id: uuid.UUID) -> Optional[TeacherResponse]:
+        teacher = await self._repository.deactivate_teacher(teacher_id)
         if teacher:
             return TeacherResponse.model_validate(teacher)
         return None

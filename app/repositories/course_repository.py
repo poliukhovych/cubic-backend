@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.catalog.course import Course
 from app.db.models.joins.teacher_course import TeacherCourse
+from app.db.models.joins.group_course import GroupCourse
 from app.utils.unset import UNSET
 
 
@@ -38,17 +39,19 @@ class CourseRepository:
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def create(self, name: str, duration: int) -> Course:
-        obj = Course(name=name, duration=duration)
+    async def create(self, name: str, duration: int, code: Optional[str] = None) -> Course:
+        obj = Course(name=name, duration=duration, code=code)
         self._session.add(obj)
         await self._session.flush()
         await self._session.refresh(obj)
         return obj
 
-    async def update(self, course_id: UUID, name: Union[str, None, object] = UNSET, duration: Union[int, None, object] = UNSET) -> Optional[Course]:
+    async def update(self, course_id: UUID, name: Union[str, None, object] = UNSET, code: Union[str, None, object] = UNSET, duration: Union[int, None, object] = UNSET) -> Optional[Course]:
         update_data = {}
         if name is not UNSET:
             update_data["name"] = name
+        if code is not UNSET:
+            update_data["code"] = code
         if duration is not UNSET:
             update_data["duration"] = duration
         
@@ -85,3 +88,15 @@ class CourseRepository:
         stmt = select(func.count(Course.course_id))
         result = await self._session.execute(stmt)
         return result.scalar() or 0
+    
+    async def get_group_ids_for_course(self, course_id: UUID) -> List[UUID]:
+        """Get all group IDs assigned to a course."""
+        stmt = select(GroupCourse.group_id).where(GroupCourse.course_id == course_id)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+    
+    async def get_teacher_ids_for_course(self, course_id: UUID) -> List[UUID]:
+        """Get all teacher IDs assigned to a course."""
+        stmt = select(TeacherCourse.teacher_id).where(TeacherCourse.course_id == course_id)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
