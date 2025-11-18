@@ -6,27 +6,27 @@ class CourseFrequency(str, enum.Enum):
     """
     Frequency for a course, e.g., weekly or bi-weekly.
     """
-    WEEKLY = "weekly"
-    ODD = "odd"
-    EVEN = "even"
+    WEEKLY = "WEEKLY"
+    ODD = "ODD"
+    EVEN = "EVEN"
 
 
 class TimeslotFrequency(str, enum.Enum):
     """
     Frequency for a timeslot, distinguishing 'all' weeks from 'odd'/'even'.
     """
-    ALL = "all"
-    ODD = "odd"
-    EVEN = "even"
+    ALL = "ALL"
+    ODD = "ODD"
+    EVEN = "EVEN"
 
 
 class CourseType(str, enum.Enum):
     """
     Type of class (lecture, practical, lab).
     """
-    LEC = "lec"
-    PRAC = "prac"
-    LAB = "lab"
+    LEC = "LEC"
+    PRAC = "PRAC"
+    LAB = "LAB"
 
 
 CourseFrequencyEnum = SQLEnum(

@@ -5,7 +5,15 @@ from typing import Optional, List
 
 class Settings(BaseSettings):
     """Application settings"""
-    database_url: str = "postgresql+asyncpg://postgres:1234@localhost:5432/schedule_db"
+    # Database Configuration
+    # Read DATABASE_URL from environment, with fallback for local development
+    # In Docker, use 'db' as hostname; locally use 'localhost'
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:1234@localhost:5432/schedule_db"
+    
+    @property
+    def database_url(self) -> str:
+        """Alias for DATABASE_URL to support both naming conventions"""
+        return self.DATABASE_URL
     
     # JWT Configuration
     JWT_SECRET_KEY: str = "your-secret-key-change-in-production-min-32-characters-long"
@@ -34,6 +42,9 @@ class Settings(BaseSettings):
         # by docker-compose (env_file) and do not auto-load local files.
         # Keeping extra=ignore to tolerate unexpected vars.
         extra = "ignore"
+        # Explicitly map DATABASE_URL env var to database_url field
+        env_file = ".env"
+        case_sensitive = False
 
     @property
     def cors_origins_list(self) -> List[str]:

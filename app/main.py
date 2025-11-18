@@ -6,17 +6,10 @@ from sqlalchemy import text
 from app.api import health, groups, teachers, courses, auth
 from app.db.models.base import Base
 from app.db.session import engine
-from app.db.models.people.user import User  
-from app.db.models.people.teacher import Teacher 
-from app.db.models.people.registration_request import RegistrationRequest  # ensure table creation
-from app.services.course_service import CourseService
-from app.services.teacher_service import TeacherService
-from app.services.group_service import GroupService
 from app.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 from app.core.logging import setup_logging
 from app.core.config import settings
 import os
-
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -24,20 +17,25 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     log_level = os.getenv("LOG_LEVEL", "INFO")
     log_file = os.getenv("LOG_FILE")
     use_json_logs = os.getenv("USE_JSON_LOGS", "false").lower() == "true"
-    
     setup_logging(
         level=log_level,
         log_file=log_file,
         use_json=use_json_logs
     )
-    
+
     # Database initialization
     async with engine.begin() as conn:
         await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "citext";'))
         await conn.run_sync(Base.metadata.create_all)
-    
-    yield
 
+    # Initialize schedule data
+    try:
+        from app.db.add_schedule_to_db import init_schedule_data
+        await init_schedule_data()
+    except Exception as e:
+        print(f"⚠ Warning: Could not initialize schedule data: {e}")
+        # Continue startup even if schedule initialization fails
+    yield
 
 app = FastAPI(
     title="Cubic Backend API",
@@ -54,7 +52,7 @@ app.add_middleware(ErrorHandlingMiddleware)
 app.add_middleware(LoggingMiddleware)
 
 # CORS middleware
-app.add_middleware(  
+app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
@@ -63,17 +61,13 @@ app.add_middleware(
     expose_headers=["*"],  # Expose all headers for Google FedCM
 )
 
-
 @app.middleware("http")
 async def add_custom_headers(request, call_next):
     response = await call_next(request)
-    
     # Add UTF-8 encoding for JSON responses
     if response.headers.get("content-type", "").startswith("application/json"):
         response.headers["content-type"] = "application/json; charset=utf-8"
-    
     return response
-
 
 app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(auth.router, prefix="/api", tags=["auth"])
@@ -114,7 +108,6 @@ async def test_middleware(item_id: str):
 async def test_middleware_validation(request: TestRequest):
     """Test endpoint for validation error handling"""
     return {"message": f"Hello {request.name}, you are {request.age} years old"}
-
 
 @app.get("/")
 async def root():

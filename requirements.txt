@@ -15,3 +15,4 @@ requests>=2.31.0
 jose~=1.0.0
 starlette~=0.47.2
 pytest~=8.4.1
+psycopg2-binary>=2.9.0
