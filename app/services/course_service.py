@@ -25,7 +25,6 @@ class CourseService:
             course_dict = {
                 "course_id": course.course_id,
                 "name": course.name,
-                "code": course.code,
                 "duration": course.duration,
                 "group_ids": group_ids,
                 "teacher_ids": teacher_ids
@@ -43,7 +42,6 @@ class CourseService:
             course_dict = {
                 "course_id": course.course_id,
                 "name": course.name,
-                "code": course.code,
                 "duration": course.duration,
                 "group_ids": group_ids,
                 "teacher_ids": teacher_ids
@@ -62,7 +60,6 @@ class CourseService:
             course_dict = {
                 "course_id": course.course_id,
                 "name": course.name,
-                "code": course.code,
                 "duration": course.duration,
                 "group_ids": group_ids,
                 "teacher_ids": teacher_ids
@@ -78,7 +75,6 @@ class CourseService:
         
         course = await self.repo.create(
             name=course_data.name,
-            code=course_data.code,
             duration=course_data.duration
         )
         
@@ -89,7 +85,6 @@ class CourseService:
         course_dict = {
             "course_id": course.course_id,
             "name": course.name,
-            "code": course.code,
             "duration": course.duration,
             "group_ids": group_ids,
             "teacher_ids": teacher_ids
@@ -105,19 +100,9 @@ class CourseService:
             if existing_course and existing_course.course_id != course_id:
                 raise ValueError(f"A course with the name '{course_data.name}' already exists.")
         
-        # Prepare update data including code
-        update_data = {}
-        if course_data.name is not UNSET:
-            update_data["name"] = course_data.name
-        if course_data.code is not UNSET:
-            update_data["code"] = course_data.code
-        if course_data.duration is not UNSET:
-            update_data["duration"] = course_data.duration
-        
         updated_course = await self.repo.update(
             course_id=course_id,
             name=course_data.name if course_data.name is not UNSET else UNSET,
-            code=course_data.code if course_data.code is not UNSET else UNSET,
             duration=course_data.duration if course_data.duration is not UNSET else UNSET
         )
         
@@ -128,7 +113,6 @@ class CourseService:
             course_dict = {
                 "course_id": updated_course.course_id,
                 "name": updated_course.name,
-                "code": updated_course.code,
                 "duration": updated_course.duration,
                 "group_ids": group_ids,
                 "teacher_ids": teacher_ids

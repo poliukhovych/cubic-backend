@@ -39,19 +39,17 @@ class CourseRepository:
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def create(self, name: str, duration: int, code: Optional[str] = None) -> Course:
-        obj = Course(name=name, duration=duration, code=code)
+    async def create(self, name: str, duration: int) -> Course:
+        obj = Course(name=name, duration=duration)
         self._session.add(obj)
         await self._session.flush()
         await self._session.refresh(obj)
         return obj
 
-    async def update(self, course_id: UUID, name: Union[str, None, object] = UNSET, code: Union[str, None, object] = UNSET, duration: Union[int, None, object] = UNSET) -> Optional[Course]:
+    async def update(self, course_id: UUID, name: Union[str, None, object] = UNSET, duration: Union[int, None, object] = UNSET) -> Optional[Course]:
         update_data = {}
         if name is not UNSET:
             update_data["name"] = name
-        if code is not UNSET:
-            update_data["code"] = code
         if duration is not UNSET:
             update_data["duration"] = duration
         

@@ -9,6 +9,7 @@ from app.db.session import engine
 from app.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 from app.core.logging import setup_logging
 from app.core.config import settings
+from app.api import schedules
 import os
 
 @asynccontextmanager
@@ -77,6 +78,7 @@ app.include_router(admin_registrations.router, prefix="/api", tags=["admin-regis
 app.include_router(admin_people.router, prefix="/api", tags=["admin-people"])
 app.include_router(teachers.router, prefix="/api/teachers", tags=["teachers"])
 app.include_router(groups.router, prefix="/api/groups", tags=["groups"])
+app.include_router(schedules.router, prefix="/api", tags=["schedules"])
 app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
 
 # Simple test endpoint to demo custom exceptions

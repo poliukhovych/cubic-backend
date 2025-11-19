@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import Integer, String, CheckConstraint, ForeignKey, Enum as SQLEnum
+from sqlalchemy import Integer, String, CheckConstraint, ForeignKey, Enum as SQLEnum, text
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.models.base import Base
 import uuid
@@ -31,9 +31,9 @@ class Group(Base):
     size: Mapped[int] = mapped_column(Integer, nullable=False)
     
     type: Mapped[GroupType] = mapped_column(
-        SQLEnum(GroupType, name="group_type_enum", create_type=True),
+        SQLEnum(GroupType, name="group_type_enum", create_type=True, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
-        server_default="bachelor"
+        server_default=text("'bachelor'::group_type_enum")
     )
     course: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
 
