@@ -39,7 +39,9 @@ class GroupService:
         
         group = await self.repo.create(
             name=group_data.name,
-            size=group_data.size
+            size=group_data.size,
+            type=group_data.type,
+            course=group_data.course
         )
         return GroupResponse.model_validate(group)
 
@@ -56,7 +58,9 @@ class GroupService:
         updated_group = await self.repo.update(
             group_id=group_id,
             name=group_data.name,
-            size=group_data.size
+            size=group_data.size,
+            type=group_data.type if group_data.type is not UNSET else UNSET,
+            course=group_data.course if group_data.course is not UNSET else UNSET
         )
         
         if not updated_group:

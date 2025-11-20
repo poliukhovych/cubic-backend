@@ -7,6 +7,7 @@ from app.utils.unset import UNSET
 class CourseBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="Course name")
     duration: int = Field(..., gt=0, description="Course duration in hours")
+    code: Optional[str] = Field(None, max_length=50, description="Course code")
 
 
 class CourseCreate(CourseBase):
@@ -17,6 +18,7 @@ class CourseCreate(CourseBase):
 class CourseUpdate(BaseModel):
     name: Union[str, None, object] = Field(UNSET, min_length=1, max_length=255, description="Course name")
     duration: Union[int, None, object] = Field(UNSET, gt=0, description="Course duration in hours")
+    code: Union[str, None, object] = Field(UNSET, max_length=50, description="Course code")
     group_ids: Union[list[UUID], None, object] = Field(UNSET, description="List of group IDs")
     teacher_ids: Union[list[UUID], None, object] = Field(UNSET, description="List of teacher IDs")
 

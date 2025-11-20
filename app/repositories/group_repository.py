@@ -41,8 +41,10 @@ class GroupRepository:
         result = await self._session.execute(stmt)
         return list(result.scalars().unique().all())
 
-    async def create(self, name: str, size: int) -> Group:
-        obj = Group(name=name, size=size)
+    async def create(self, name: str, size: int, type: str = "bachelor", course: int = 1) -> Group:
+        from app.db.models.catalog.group import GroupType
+        group_type = GroupType.BACHELOR if type == "bachelor" else GroupType.MASTER
+        obj = Group(name=name, size=size, type=group_type, course=course)
         self._session.add(obj)
         await self._session.flush()
         await self._session.refresh(obj)
@@ -52,13 +54,21 @@ class GroupRepository:
         self, 
         group_id: UUID, 
         name: Union[str, None, object] = UNSET, 
-        size: Union[int, None, object] = UNSET
+        size: Union[int, None, object] = UNSET,
+        type: Union[str, None, object] = UNSET,
+        course: Union[int, None, object] = UNSET
     ) -> Optional[Group]:
+        from app.db.models.catalog.group import GroupType
         update_data = {}
         if name is not UNSET:
             update_data["name"] = name
         if size is not UNSET:
             update_data["size"] = size
+        if type is not UNSET:
+            group_type = GroupType.BACHELOR if type == "bachelor" else GroupType.MASTER
+            update_data["type"] = group_type
+        if course is not UNSET:
+            update_data["course"] = course
         
         if not update_data:
             return await self.find_by_id(group_id)

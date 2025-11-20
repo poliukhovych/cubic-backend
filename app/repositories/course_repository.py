@@ -39,19 +39,21 @@ class CourseRepository:
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def create(self, name: str, duration: int) -> Course:
-        obj = Course(name=name, duration=duration)
+    async def create(self, name: str, duration: int, code: Optional[str] = None) -> Course:
+        obj = Course(name=name, duration=duration, code=code)
         self._session.add(obj)
         await self._session.flush()
         await self._session.refresh(obj)
         return obj
 
-    async def update(self, course_id: UUID, name: Union[str, None, object] = UNSET, duration: Union[int, None, object] = UNSET) -> Optional[Course]:
+    async def update(self, course_id: UUID, name: Union[str, None, object] = UNSET, duration: Union[int, None, object] = UNSET, code: Union[str, None, object] = UNSET) -> Optional[Course]:
         update_data = {}
         if name is not UNSET:
             update_data["name"] = name
         if duration is not UNSET:
             update_data["duration"] = duration
+        if code is not UNSET:
+            update_data["code"] = code
         
         if not update_data:
             return await self.find_by_id(course_id)
@@ -101,32 +103,68 @@ class CourseRepository:
     
     async def create_group_course_links(self, course_id: UUID, group_ids: List[UUID]):
         """Create GroupCourse links for a course."""
-        # Delete existing links first
+        # Ensure course_id is a UUID object
+        if isinstance(course_id, str):
+            course_id = UUID(course_id)
+        
+        # Delete existing links first and flush to ensure they're removed
         await self.delete_group_course_links(course_id)
-        # Create new links
+        
+        # If no groups to add, return early
+        if not group_ids:
+            return
+        
+        # Create new links - ensure all IDs are UUID objects
+        links_to_add = []
         for group_id in group_ids:
-            link = GroupCourse(group_id=group_id, course_id=course_id)
-            self._session.add(link)
+            # Convert to UUID if it's a string
+            if isinstance(group_id, str):
+                group_id = UUID(group_id)
+            links_to_add.append(GroupCourse(group_id=group_id, course_id=course_id))
+        
+        # Add all links at once
+        self._session.add_all(links_to_add)
         await self._session.flush()
     
     async def create_teacher_course_links(self, course_id: UUID, teacher_ids: List[UUID]):
         """Create TeacherCourse links for a course."""
-        # Delete existing links first
+        # Ensure course_id is a UUID object
+        if isinstance(course_id, str):
+            course_id = UUID(course_id)
+        
+        # Delete existing links first and flush to ensure they're removed
         await self.delete_teacher_course_links(course_id)
-        # Create new links
+        
+        # If no teachers to add, return early
+        if not teacher_ids:
+            return
+        
+        # Create new links - ensure all IDs are UUID objects
+        links_to_add = []
         for teacher_id in teacher_ids:
-            link = TeacherCourse(teacher_id=teacher_id, course_id=course_id)
-            self._session.add(link)
+            # Convert to UUID if it's a string
+            if isinstance(teacher_id, str):
+                teacher_id = UUID(teacher_id)
+            links_to_add.append(TeacherCourse(teacher_id=teacher_id, course_id=course_id))
+        
+        # Add all links at once
+        self._session.add_all(links_to_add)
         await self._session.flush()
     
     async def delete_group_course_links(self, course_id: UUID):
         """Delete all GroupCourse links for a course."""
+        # Ensure course_id is a UUID object
+        if isinstance(course_id, str):
+            course_id = UUID(course_id)
         stmt = delete(GroupCourse).where(GroupCourse.course_id == course_id)
         await self._session.execute(stmt)
         await self._session.flush()
     
     async def delete_teacher_course_links(self, course_id: UUID):
         """Delete all TeacherCourse links for a course."""
+        # Ensure course_id is a UUID object
+        if isinstance(course_id, str):
+            course_id = UUID(course_id)
         stmt = delete(TeacherCourse).where(TeacherCourse.course_id == course_id)
         await self._session.execute(stmt)
         await self._session.flush()

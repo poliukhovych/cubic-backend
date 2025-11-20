@@ -26,6 +26,7 @@ class CourseService:
                 "course_id": course.course_id,
                 "name": course.name,
                 "duration": course.duration,
+                "code": course.code,
                 "group_ids": group_ids,
                 "teacher_ids": teacher_ids
             }
@@ -43,6 +44,7 @@ class CourseService:
                 "course_id": course.course_id,
                 "name": course.name,
                 "duration": course.duration,
+                "code": course.code,
                 "group_ids": group_ids,
                 "teacher_ids": teacher_ids
             }
@@ -61,6 +63,7 @@ class CourseService:
                 "course_id": course.course_id,
                 "name": course.name,
                 "duration": course.duration,
+                "code": course.code,
                 "group_ids": group_ids,
                 "teacher_ids": teacher_ids
             }
@@ -75,7 +78,8 @@ class CourseService:
         
         course = await self.repo.create(
             name=course_data.name,
-            duration=course_data.duration
+            duration=course_data.duration,
+            code=course_data.code
         )
         
         # Create relationships if provided
@@ -109,7 +113,8 @@ class CourseService:
         updated_course = await self.repo.update(
             course_id=course_id,
             name=course_data.name if course_data.name is not UNSET else UNSET,
-            duration=course_data.duration if course_data.duration is not UNSET else UNSET
+            duration=course_data.duration if course_data.duration is not UNSET else UNSET,
+            code=course_data.code if course_data.code is not UNSET else UNSET
         )
         
         if updated_course:
