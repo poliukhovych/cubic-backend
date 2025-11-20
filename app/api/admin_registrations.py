@@ -16,7 +16,7 @@ from app.schemas.registration import (
     RejectRegistrationRequest,
 )
 
-router = APIRouter(prefix="/admin/registrations", tags=["Admin Registrations"])
+router = APIRouter(prefix="/admin/registrations")
 
 
 @router.get("/", response_model=list[RegistrationRequestOut])

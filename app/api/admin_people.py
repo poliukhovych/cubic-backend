@@ -21,7 +21,7 @@ from app.repositories.teacher_repository import TeacherRepository
 from app.utils.unset import UNSET
 import uuid
 
-router = APIRouter(prefix="/admin", tags=["Admin People"])
+router = APIRouter(prefix="/admin")
 
 
 @router.get("/stats", response_model=AdminStats)

@@ -5,8 +5,7 @@ from app.schemas.schedule import ScheduleGenerationResponse
 from app.services.schedule_generation_service import ScheduleService
 
 router = APIRouter(
-    prefix="/schedules",
-    tags=["Schedules"]
+    prefix="/schedules"
 )
 
 

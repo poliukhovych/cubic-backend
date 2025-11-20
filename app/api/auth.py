@@ -25,7 +25,7 @@ from app.schemas.auth import (
 from app.core.security import create_access_token, get_current_user
 from app.core.config import settings
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(prefix="/auth")
 
 
 @router.post("/google", response_model=AuthResponse)
