@@ -27,8 +27,9 @@ class TimeslotService:
         for ts in timeslots:
             day_str = self._DAY_MAP.get(ts.day, "unknown")
             # format: "{day}.{frequency}.{lesson_id}"
-            # enum value of frequency is used (e.g., 'all', 'odd', 'even')
-            fmt_id = f"{day_str}.{ts.frequency.value}.{ts.lesson_id}"
+            # enum value повертає "ALL", "ODD", "EVEN" - конвертуємо в нижній регістр
+            frequency_str = ts.frequency.value.lower() if hasattr(ts.frequency, 'value') else str(ts.frequency).lower()
+            fmt_id = f"{day_str}.{frequency_str}.{ts.lesson_id}"
             formatted_ids.append(fmt_id)
 
         return formatted_ids
@@ -43,7 +44,25 @@ class TimeslotService:
 
         for ts in timeslots:
             day_str = self._DAY_MAP.get(ts.day, "unknown")
-            fmt_id = f"{day_str}.{ts.frequency.value}.{ts.lesson_id}"
+            # Конвертуємо frequency в нижній регістр для узгодженості з форматом мікросервісу
+            frequency_str = ts.frequency.value.lower() if hasattr(ts.frequency, 'value') else str(ts.frequency).lower()
+            fmt_id = f"{day_str}.{frequency_str}.{ts.lesson_id}"
             mapping[ts.timeslot_id] = fmt_id
+
+        return mapping
+
+    async def get_string_to_id_map(self) -> Dict[str, int]:
+        """
+        Returns a dictionary mapping String IDs (e.g., 'mon.all.1') to DB Integer IDs.
+        Useful for converting microservice response back to DB format.
+        """
+        timeslots = await self.repo.find_all()
+        mapping = {}
+
+        for ts in timeslots:
+            day_str = self._DAY_MAP.get(ts.day, "unknown")
+            frequency_str = ts.frequency.value.lower() if hasattr(ts.frequency, 'value') else str(ts.frequency).lower()
+            fmt_id = f"{day_str}.{frequency_str}.{ts.lesson_id}"
+            mapping[fmt_id] = ts.timeslot_id
 
         return mapping

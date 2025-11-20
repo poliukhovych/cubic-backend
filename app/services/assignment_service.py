@@ -1,8 +1,12 @@
+import logging
+import json
 from app.repositories.assignment_repository import AssignmentRepository
 from app.db.models.scheduling.assignment import Assignment
 from app.schemas.assignment import AssignmentCreate
 from typing import List, Dict, Any
 from uuid import UUID
+
+logger = logging.getLogger(__name__)
 
 
 class AssignmentService:
@@ -20,6 +24,8 @@ class AssignmentService:
         Transforms raw assignment data and bulk-creates all
         assignment records for a given schedule ID.
         """
+        logger.info(f"Початок збереження призначень в БД для schedule_id={schedule_id}")
+        logger.info(f"Кількість призначень для збереження: {len(assignments_data)}")
 
         # 1. Prepare the list of Pydantic models
         assignments_to_create: List[AssignmentCreate] = []
@@ -34,8 +40,16 @@ class AssignmentService:
 
         # 2. Call the repository with the correct single argument
         if not assignments_to_create:
+            logger.warning("Немає призначень для збереження")
             return []
 
-        return await self.repo.bulk_create(
+        logger.debug(f"Дані призначень для запису в БД: {json.dumps([a.model_dump() for a in assignments_to_create], ensure_ascii=False, indent=2, default=str)}")
+        
+        saved_assignments = await self.repo.bulk_create(
             assignments=assignments_to_create
         )
+        
+        logger.info(f"Успішно збережено в БД призначень: {len(saved_assignments)}")
+        logger.debug(f"Деталі збережених призначень: {[{'assignment_id': str(a.assignment_id), 'schedule_id': str(a.schedule_id), 'group_id': str(a.group_id), 'course_id': str(a.course_id), 'teacher_id': str(a.teacher_id)} for a in saved_assignments]}")
+        
+        return saved_assignments

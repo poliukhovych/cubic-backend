@@ -1,8 +1,6 @@
 import uuid
-from typing import Optional
+from typing import Optional, Literal
 from pydantic import BaseModel, Field, ConfigDict
-
-from app.db.models.common_enums import CourseType
 
 
 class MicroserviceAssignment(BaseModel):
@@ -16,7 +14,8 @@ class MicroserviceAssignment(BaseModel):
     course_id: uuid.UUID = Field(..., alias="courseId", description="Course ID")
     teacher_id: uuid.UUID = Field(..., alias="teacherId", description="Teacher ID")
     room_id: Optional[uuid.UUID] = Field(None, alias="roomId", description="Room ID (null for remote)")
-    course_type: CourseType = Field(..., alias="courseType", description="Type of class (lec, prac, lab)")
+    # PostgreSQL enum expects lowercase: 'lec', 'prac', 'lab'
+    course_type: Literal["lec", "prac", "lab"] = Field(..., alias="courseType", description="Type of class (lec, prac, lab)")
     
     model_config = ConfigDict(populate_by_name=True)
 

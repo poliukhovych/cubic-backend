@@ -67,3 +67,10 @@ class GroupService:
     async def delete_group(self, group_id: UUID) -> bool:
         result = await self.repo.delete(group_id)
         return result
+
+    async def get_all_groups_as_models(self) -> List[Group]:
+        """
+        Returns all groups as raw Group models (not GroupResponse).
+        Useful when you need access to fields not in GroupResponse (e.g., parent_group_id).
+        """
+        return await self.repo.find_all()

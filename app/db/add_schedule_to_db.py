@@ -281,6 +281,7 @@ def get_hardcoded_data():
     ]
     
     # ========== ПАРИ (LESSONS) ==========
+    # Максимум 4 пари на день (lesson_id 1-4) - обмеження в БД
     lessons = [
         Lesson(
             lesson_id=1,
@@ -305,12 +306,14 @@ def get_hardcoded_data():
     ]
     
     # ========== ЧАСОВІ СЛОТИ (TIMESLOTS) ==========
-    # Створюємо timeslots для понеділка, середи, п'ятниці (дні 1, 3, 5)
+    # Створюємо timeslots для всіх робочих днів (понеділок-п'ятниця, дні 1-5)
     # для всіх пар (1-4) та всіх частот (all, odd, even)
     # timeslot_id буде автоматично згенерований (autoincrement)
+    # Це дає: 5 днів * 4 пари * 3 частоти = 60 слотів загалом
+    # Для frequency="all": 5 днів * 4 пари = 20 слотів
     timeslots = []
-    for day in [1, 3, 5]:  # Понеділок, Середа, П'ятниця
-        for lesson_id in [1, 2, 3, 4]:
+    for day in [1, 2, 3, 4, 5]:  # Понеділок - П'ятниця
+        for lesson_id in [1, 2, 3, 4]:  # Максимум 4 пари на день
             for freq in [TimeslotFrequency.ALL, TimeslotFrequency.ODD, TimeslotFrequency.EVEN]:
                 timeslots.append(
                     Timeslot(

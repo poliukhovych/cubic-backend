@@ -389,6 +389,7 @@ async def _create_groups(session: AsyncSession):
 
 async def _create_lessons(session: AsyncSession):
     """Створює тестові пари (lessons)"""
+    # Максимум 4 пари на день (lesson_id 1-4) - обмеження в БД (ck_lessons_id_range)
     lessons = [
         Lesson(
             lesson_id=1,
@@ -418,9 +419,13 @@ async def _create_lessons(session: AsyncSession):
 
 async def _create_timeslots(session: AsyncSession):
     """Створює тестові часові слоти"""
+    # Створюємо timeslots для всіх робочих днів (понеділок-п'ятниця, дні 1-5)
+    # для всіх пар (1-4) та всіх частот (all, odd, even)
+    # Це дає: 5 днів * 4 пари * 3 частоти = 60 слотів загалом
+    # Для frequency="all": 5 днів * 4 пари = 20 слотів
     timeslots = []
     for day in [1, 2, 3, 4, 5]:  # Понеділок - П'ятниця
-        for lesson_id in [1, 2, 3, 4]:
+        for lesson_id in [1, 2, 3, 4]:  # Максимум 4 пари на день
             for freq in [TimeslotFrequency.ALL, TimeslotFrequency.ODD, TimeslotFrequency.EVEN]:
                 timeslots.append(
                     Timeslot(
