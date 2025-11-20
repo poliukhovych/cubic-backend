@@ -98,3 +98,35 @@ class CourseRepository:
         stmt = select(TeacherCourse.teacher_id).where(TeacherCourse.course_id == course_id)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+    
+    async def create_group_course_links(self, course_id: UUID, group_ids: List[UUID]):
+        """Create GroupCourse links for a course."""
+        # Delete existing links first
+        await self.delete_group_course_links(course_id)
+        # Create new links
+        for group_id in group_ids:
+            link = GroupCourse(group_id=group_id, course_id=course_id)
+            self._session.add(link)
+        await self._session.flush()
+    
+    async def create_teacher_course_links(self, course_id: UUID, teacher_ids: List[UUID]):
+        """Create TeacherCourse links for a course."""
+        # Delete existing links first
+        await self.delete_teacher_course_links(course_id)
+        # Create new links
+        for teacher_id in teacher_ids:
+            link = TeacherCourse(teacher_id=teacher_id, course_id=course_id)
+            self._session.add(link)
+        await self._session.flush()
+    
+    async def delete_group_course_links(self, course_id: UUID):
+        """Delete all GroupCourse links for a course."""
+        stmt = delete(GroupCourse).where(GroupCourse.course_id == course_id)
+        await self._session.execute(stmt)
+        await self._session.flush()
+    
+    async def delete_teacher_course_links(self, course_id: UUID):
+        """Delete all TeacherCourse links for a course."""
+        stmt = delete(TeacherCourse).where(TeacherCourse.course_id == course_id)
+        await self._session.execute(stmt)
+        await self._session.flush()

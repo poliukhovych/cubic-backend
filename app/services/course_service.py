@@ -78,7 +78,13 @@ class CourseService:
             duration=course_data.duration
         )
         
-        # Get relationships (will be empty for new course)
+        # Create relationships if provided
+        if course_data.group_ids:
+            await self.repo.create_group_course_links(course.course_id, course_data.group_ids)
+        if course_data.teacher_ids:
+            await self.repo.create_teacher_course_links(course.course_id, course_data.teacher_ids)
+        
+        # Get relationships
         group_ids = await self.repo.get_group_ids_for_course(course.course_id)
         teacher_ids = await self.repo.get_teacher_ids_for_course(course.course_id)
         
@@ -107,6 +113,20 @@ class CourseService:
         )
         
         if updated_course:
+            # Update relationships if provided
+            if course_data.group_ids is not UNSET:
+                if course_data.group_ids:
+                    await self.repo.create_group_course_links(updated_course.course_id, course_data.group_ids)
+                else:
+                    await self.repo.delete_group_course_links(updated_course.course_id)
+            
+            if course_data.teacher_ids is not UNSET:
+                if course_data.teacher_ids:
+                    await self.repo.create_teacher_course_links(updated_course.course_id, course_data.teacher_ids)
+                else:
+                    await self.repo.delete_teacher_course_links(updated_course.course_id)
+            
+            # Get relationships
             group_ids = await self.repo.get_group_ids_for_course(updated_course.course_id)
             teacher_ids = await self.repo.get_teacher_ids_for_course(updated_course.course_id)
             

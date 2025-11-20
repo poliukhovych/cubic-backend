@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # --- Import Repositories ---
 from app.repositories.group_repository import GroupRepository
 from app.repositories.teacher_repository import TeacherRepository
+from app.repositories.user_repository import UserRepository
 from app.repositories.room_repository import RoomRepository
 from app.repositories.course_repository import CourseRepository
 from app.repositories.schedule_repository import ScheduleRepository
@@ -18,6 +19,7 @@ from app.repositories.constraint_repository import ConstraintRepository
 # --- Import Services ---
 from app.services.group_service import GroupService
 from app.services.teacher_service import TeacherService
+from app.services.user_service import UserService
 from app.services.room_service import RoomService
 from app.services.course_service import CourseService
 from app.services.schedule_service import ScheduleService
@@ -34,7 +36,14 @@ from app.services.schedule_generation_service import ScheduleGenerationService
 
 async def get_session():
     async with async_session_maker() as session:
-        yield session
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
 
 
 # --- Repository Providers ---
@@ -48,6 +57,11 @@ def get_teacher_repository(
     session: AsyncSession = Depends(get_session)
 ) -> TeacherRepository:
     return TeacherRepository(session)
+
+def get_user_repository(
+    session: AsyncSession = Depends(get_session)
+) -> UserRepository:
+    return UserRepository(session)
 
 def get_room_repository(
     session: AsyncSession = Depends(get_session)
@@ -96,6 +110,11 @@ def get_teacher_service(
     repo: TeacherRepository = Depends(get_teacher_repository)
 ) -> TeacherService:
     return TeacherService(repo)
+
+def get_user_service(
+    repo: UserRepository = Depends(get_user_repository)
+) -> UserService:
+    return UserService(repo)
 
 def get_room_service(
     repo: RoomRepository = Depends(get_room_repository)

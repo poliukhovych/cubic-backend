@@ -11,10 +11,11 @@ from datetime import time
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from app.db.models import (
-    Teacher, Room, Group, Course, Lesson, Timeslot, Schedule, Assignment,
+    User, UserRole,
+    Teacher, Student, Room, Group, Course, Lesson, Timeslot, Schedule, Assignment,
     GroupCourse, TeacherCourse
 )
-from app.db.models.common_enums import TimeslotFrequency, CourseFrequency
+from app.db.models.common_enums import TimeslotFrequency, CourseFrequency, TeacherStatus, StudentStatus
 from app.core.config import settings
 
 
@@ -51,10 +52,25 @@ def get_hardcoded_data():
     """
     
     # ========== UUID для всіх об'єктів ==========
+    # Users для викладачів
+    user_teacher1_id = uuid.UUID('00000000-0000-0000-0000-000000000011')
+    user_teacher2_id = uuid.UUID('00000000-0000-0000-0000-000000000012')
+    user_teacher3_id = uuid.UUID('00000000-0000-0000-0000-000000000013')
+    
+    # Users для студентів
+    user_student1_id = uuid.UUID('00000000-0000-0000-0000-000000000021')
+    user_student2_id = uuid.UUID('00000000-0000-0000-0000-000000000022')
+    user_student3_id = uuid.UUID('00000000-0000-0000-0000-000000000023')
+    
     # Викладачі
     teacher1_id = uuid.UUID('11111111-1111-1111-1111-111111111111')
     teacher2_id = uuid.UUID('22222222-2222-2222-2222-222222222222')
     teacher3_id = uuid.UUID('33333333-3333-3333-3333-333333333333')
+    
+    # Студенти
+    student1_id = uuid.UUID('20000000-0000-0000-0000-000000000001')
+    student2_id = uuid.UUID('20000000-0000-0000-0000-000000000002')
+    student3_id = uuid.UUID('20000000-0000-0000-0000-000000000003')
     
     # Аудиторії
     room1_id = uuid.UUID('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')
@@ -75,31 +91,126 @@ def get_hardcoded_data():
     # Розклад
     schedule_id = uuid.UUID('ffffffff-ffff-ffff-ffff-ffffffffffff')
     
+    # ========== USERS (для викладачів та студентів) ==========
+    users = [
+        User(
+            user_id=user_teacher1_id,
+            google_sub="google_sub_teacher_1",
+            email="teacher1@university.edu",
+            first_name="Іван",
+            last_name="Петренко",
+            patronymic="Олександрович",
+            role=UserRole.TEACHER,
+            is_active=True
+        ),
+        User(
+            user_id=user_teacher2_id,
+            google_sub="google_sub_teacher_2",
+            email="teacher2@university.edu",
+            first_name="Марія",
+            last_name="Коваленко",
+            patronymic="Володимирівна",
+            role=UserRole.TEACHER,
+            is_active=True
+        ),
+        User(
+            user_id=user_teacher3_id,
+            google_sub="google_sub_teacher_3",
+            email="teacher3@university.edu",
+            first_name="Олексій",
+            last_name="Сидоренко",
+            patronymic="Михайлович",
+            role=UserRole.TEACHER,
+            is_active=True
+        ),
+        User(
+            user_id=user_student1_id,
+            google_sub="google_sub_student_1",
+            email="student1@university.edu",
+            first_name="Дмитро",
+            last_name="Іваненко",
+            patronymic="Олегович",
+            role=UserRole.STUDENT,
+            is_active=True
+        ),
+        User(
+            user_id=user_student2_id,
+            google_sub="google_sub_student_2",
+            email="student2@university.edu",
+            first_name="Анна",
+            last_name="Шевченко",
+            patronymic="Вікторівна",
+            role=UserRole.STUDENT,
+            is_active=True
+        ),
+        User(
+            user_id=user_student3_id,
+            google_sub="google_sub_student_3",
+            email="student3@university.edu",
+            first_name="Олександр",
+            last_name="Мельник",
+            patronymic="Іванович",
+            role=UserRole.STUDENT,
+            is_active=True
+        ),
+    ]
+    
     # ========== ВИКЛАДАЧІ ==========
     teachers = [
         Teacher(
             teacher_id=teacher1_id,
-            user_id=None,
+            user_id=user_teacher1_id,
             first_name="Іван",
             last_name="Петренко",
             patronymic="Олександрович",
-            status="active"
+            status=TeacherStatus.ACTIVE
         ),
         Teacher(
             teacher_id=teacher2_id,
-            user_id=None,
+            user_id=user_teacher2_id,
             first_name="Марія",
             last_name="Коваленко",
             patronymic="Володимирівна",
-            status="active"
+            status=TeacherStatus.ACTIVE
         ),
         Teacher(
             teacher_id=teacher3_id,
-            user_id=None,
+            user_id=user_teacher3_id,
             first_name="Олексій",
             last_name="Сидоренко",
             patronymic="Михайлович",
-            status="active"
+            status=TeacherStatus.ACTIVE
+        ),
+    ]
+    
+    # ========== СТУДЕНТИ ==========
+    students = [
+        Student(
+            student_id=student1_id,
+            user_id=user_student1_id,
+            group_id=group1_id,
+            first_name="Дмитро",
+            last_name="Іваненко",
+            patronymic="Олегович",
+            status=StudentStatus.ACTIVE
+        ),
+        Student(
+            student_id=student2_id,
+            user_id=user_student2_id,
+            group_id=group2_id,
+            first_name="Анна",
+            last_name="Шевченко",
+            patronymic="Вікторівна",
+            status=StudentStatus.ACTIVE
+        ),
+        Student(
+            student_id=student3_id,
+            user_id=user_student3_id,
+            group_id=group1_id,
+            first_name="Олександр",
+            last_name="Мельник",
+            patronymic="Іванович",
+            status=StudentStatus.ACTIVE
         ),
     ]
     
@@ -311,7 +422,9 @@ def get_hardcoded_data():
     ]
     
     return {
+        'users': users,
         'teachers': teachers,
+        'students': students,
         'rooms': rooms,
         'groups': groups,
         'courses': courses,
@@ -328,6 +441,13 @@ def add_to_database_sync(session: Session, data: dict):
     """Синхронна функція для додавання всіх об'єктів в БД"""
     
     print("=== Додавання даних в БД ===\n")
+    
+    # Додаємо users - потрібні першими для teachers
+    print(f"Додаю {len(data['users'])} користувачів...")
+    for user in data['users']:
+        session.merge(user)  # merge для уникнення дублікатів
+    session.commit()
+    print("✓ Користувачі додані\n")
     
     # Додаємо пари (lessons) - потрібні першими
     print(f"Додаю {len(data['lessons'])} пар...")
@@ -363,6 +483,13 @@ def add_to_database_sync(session: Session, data: dict):
         session.merge(group)
     session.commit()
     print("✓ Групи додані\n")
+    
+    # Додаємо студентів (після groups, бо students мають group_id)
+    print(f"Додаю {len(data['students'])} студентів...")
+    for student in data['students']:
+        session.merge(student)
+    session.commit()
+    print("✓ Студенти додані\n")
     
     # Додаємо курси
     print(f"Додаю {len(data['courses'])} курсів...")

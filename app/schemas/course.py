@@ -10,12 +10,15 @@ class CourseBase(BaseModel):
 
 
 class CourseCreate(CourseBase):
-    pass
+    group_ids: list[UUID] = Field(default_factory=list, description="List of group IDs")
+    teacher_ids: list[UUID] = Field(default_factory=list, description="List of teacher IDs")
 
 
 class CourseUpdate(BaseModel):
     name: Union[str, None, object] = Field(UNSET, min_length=1, max_length=255, description="Course name")
     duration: Union[int, None, object] = Field(UNSET, gt=0, description="Course duration in hours")
+    group_ids: Union[list[UUID], None, object] = Field(UNSET, description="List of group IDs")
+    teacher_ids: Union[list[UUID], None, object] = Field(UNSET, description="List of teacher IDs")
 
 
 class CourseResponse(CourseBase):
