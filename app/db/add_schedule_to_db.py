@@ -18,6 +18,10 @@ from app.db.models import (
 from app.db.models.common_enums import TimeslotFrequency, CourseFrequency, TeacherStatus, StudentStatus
 from app.core.config import settings
 
+# Флаг для відстеження, чи вже виконується ініціалізація
+_initialization_in_progress = False
+_initialization_completed = False
+
 
 def get_database_url() -> str:
     """Отримує DATABASE_URL з налаштувань або env змінної"""
@@ -560,33 +564,50 @@ async def init_schedule_data():
     Async функція для ініціалізації розкладу при старті backend.
     Викликається з lifespan контекст менеджера.
     """
-    print("=== Ініціалізація розкладу ===\n")
+    global _initialization_in_progress, _initialization_completed
     
-    # Створюємо синхронну сесію
-    session = create_sync_session()
+    # Перевіряємо, чи вже виконується ініціалізація
+    if _initialization_in_progress:
+        return
+    
+    # Перевіряємо, чи вже завершена ініціалізація
+    if _initialization_completed:
+        return
+    
+    _initialization_in_progress = True
     
     try:
-        # Перевіряємо, чи дані вже існують (перевіряємо наявність розкладу)
-        existing_schedule = session.scalar(
-            select(Schedule).where(Schedule.schedule_id == uuid.UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"))
-        )
+        print("=== Ініціалізація розкладу ===\n")
         
-        if existing_schedule:
-            print("ℹ️  Дані розкладу вже існують, пропускаємо ініціалізацію\n")
-            return
+        # Створюємо синхронну сесію
+        session = create_sync_session()
         
-        # Отримуємо хардкоджені дані
-        data = get_hardcoded_data()
-        
-        # Додаємо дані в БД
-        add_to_database_sync(session, data)
-    except Exception as e:
-        print(f"\n❌ Помилка при ініціалізації розкладу: {e}")
-        session.rollback()
-        # Не піднімаємо помилку, щоб не зупинити старт backend
-        print("⚠ Продовжуємо старт backend без ініціалізації розкладу\n")
+        try:
+            # Перевіряємо, чи дані вже існують (перевіряємо наявність розкладу)
+            existing_schedule = session.scalar(
+                select(Schedule).where(Schedule.schedule_id == uuid.UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"))
+            )
+            
+            if existing_schedule:
+                print("ℹ️  Дані розкладу вже існують, пропускаємо ініціалізацію\n")
+                _initialization_completed = True
+                return
+            
+            # Отримуємо хардкоджені дані
+            data = get_hardcoded_data()
+            
+            # Додаємо дані в БД
+            add_to_database_sync(session, data)
+            _initialization_completed = True
+        except Exception as e:
+            print(f"\n❌ Помилка при ініціалізації розкладу: {e}")
+            session.rollback()
+            # Не піднімаємо помилку, щоб не зупинити старт backend
+            print("⚠ Продовжуємо старт backend без ініціалізації розкладу\n")
+        finally:
+            session.close()
     finally:
-        session.close()
+        _initialization_in_progress = False
 
 
 def main():
