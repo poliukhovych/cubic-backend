@@ -94,7 +94,7 @@ class ScheduleGenerationService:
         # teachers_availability = await self.teacher_availability_service.get_all()
         teachers_payload = [
             {
-                "id": t.teacher_id,
+                "id": str(t.teacher_id),
                 "name": f"{t.last_name} {t.first_name}",
                 "available": [],  # TODO: Get from teachers_availability
                 "prefs": {}  # TODO: Get from teachers_availability
@@ -116,7 +116,7 @@ class ScheduleGenerationService:
 
         groups_payload = [
             {
-                "id": g.group_id,
+                "id": str(g.group_id),
                 "name": g.name,
                 "size": g.size,
                 "unavailable": []  # TODO: Get from groups_unavailability
@@ -128,7 +128,7 @@ class ScheduleGenerationService:
         # --- 3. Fetch Rooms Payload ---
         rooms_resp = await self.room_service.get_all_rooms()
         rooms_payload = [
-            {"id": r.room_id, "name": r.name, "capacity": r.capacity}
+            {"id": str(r.room_id), "name": r.name, "capacity": r.capacity}
             for r in rooms_resp.rooms
         ]
 
