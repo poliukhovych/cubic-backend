@@ -31,7 +31,9 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run tests with pytest
-        run: pytest
+        run: |
+          export PYTHONPATH=$PWD:$PYTHONPATH
+          pytest
 
   build-and-push:
     name: Build and Push Docker Image

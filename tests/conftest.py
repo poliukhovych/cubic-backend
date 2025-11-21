@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy import text
 from app.db.models.base import Base
 from app.main import app
-from app.db.session import async_session_maker
 from fastapi.testclient import TestClient
 
 
