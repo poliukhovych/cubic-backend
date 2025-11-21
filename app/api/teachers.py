@@ -1,12 +1,15 @@
-from fastapi import APIRouter, HTTPException, Depends, status
-from typing import List
+from fastapi import APIRouter, HTTPException, Depends, status, Query
+from typing import List, Optional
 import uuid
 
 from app.services.teacher_service import TeacherService
 from app.services.course_service import CourseService
 from app.services.group_service import GroupService
-from app.core.deps import get_teacher_service, get_course_service, get_group_service
+from app.services.assignment_service import AssignmentService
+from app.services.schedule_service import ScheduleService
+from app.core.deps import get_teacher_service, get_course_service, get_group_service, get_assignment_service, get_schedule_service
 from app.schemas.teacher import TeacherCreate, TeacherUpdate, TeacherResponse, TeacherListResponse
+from app.schemas.assignment import AssignmentResponse
 
 router = APIRouter()
 
@@ -135,3 +138,45 @@ async def delete_teacher(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail=f"Teacher with id {teacher_id} not found"
         )
+
+
+@router.get("/{teacher_id}/schedule", response_model=List[AssignmentResponse])
+async def get_teacher_schedule(
+    teacher_id: uuid.UUID,
+    schedule_id: Optional[uuid.UUID] = Query(None, description="Schedule ID. If not provided, returns latest schedule assignments."),
+    teacher_service: TeacherService = Depends(get_teacher_service),
+    assignment_service: AssignmentService = Depends(get_assignment_service),
+    schedule_service: ScheduleService = Depends(get_schedule_service)
+) -> List[AssignmentResponse]:
+    """
+    Отримує розклад конкретного викладача.
+    
+    Якщо schedule_id не вказано, використовується останній створений розклад.
+    """
+    # Перевіряємо, чи існує викладач
+    teacher = await teacher_service.get_teacher_by_id(teacher_id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Teacher with id {teacher_id} not found"
+        )
+    
+    # Якщо schedule_id не вказано, отримуємо останній розклад
+    if schedule_id is None:
+        try:
+            latest_schedule = await schedule_service.get_latest_schedule()
+            schedule_id = latest_schedule.schedule_id
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No schedules found"
+            )
+    
+    # Отримуємо призначення для викладача
+    assignments = await assignment_service.get_teacher_schedule(
+        teacher_id=teacher_id,
+        schedule_id=schedule_id
+    )
+    
+    # Конвертуємо в схему відповіді
+    return [AssignmentResponse.model_validate(assignment) for assignment in assignments]

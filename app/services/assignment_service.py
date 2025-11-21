@@ -3,7 +3,7 @@ import json
 from app.repositories.assignment_repository import AssignmentRepository
 from app.db.models.scheduling.assignment import Assignment
 from app.schemas.assignment import AssignmentCreate
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from uuid import UUID
 
 logger = logging.getLogger(__name__)
@@ -53,3 +53,24 @@ class AssignmentService:
         logger.debug(f"Деталі збережених призначень: {[{'assignment_id': str(a.assignment_id), 'schedule_id': str(a.schedule_id), 'group_id': str(a.group_id), 'course_id': str(a.course_id), 'teacher_id': str(a.teacher_id)} for a in saved_assignments]}")
         
         return saved_assignments
+
+    async def get_teacher_schedule(
+            self, teacher_id: UUID, schedule_id: Optional[UUID] = None
+    ) -> List[Assignment]:
+        """
+        Gets all assignments for a specific teacher.
+        If schedule_id is provided, returns assignments for that schedule only.
+        Otherwise, returns all assignments for the teacher across all schedules.
+        """
+        if schedule_id:
+            logger.info(f"Отримання розкладу викладача {teacher_id} для розкладу {schedule_id}")
+            assignments = await self.repo.find_by_schedule_and_teacher(
+                schedule_id=schedule_id,
+                teacher_id=teacher_id
+            )
+        else:
+            logger.info(f"Отримання всіх розкладів викладача {teacher_id}")
+            assignments = await self.repo.find_by_teacher_id(teacher_id)
+        
+        logger.info(f"Знайдено призначень: {len(assignments)}")
+        return assignments
