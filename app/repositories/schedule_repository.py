@@ -66,3 +66,9 @@ class ScheduleRepository:
         stmt = select(Schedule.schedule_id).where(Schedule.schedule_id == schedule_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
+
+    async def find_latest(self) -> Optional[Schedule]:
+        """Find the most recently created schedule."""
+        stmt = select(Schedule).order_by(Schedule.created_at.desc()).limit(1)
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()

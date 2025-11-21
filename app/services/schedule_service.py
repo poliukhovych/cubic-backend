@@ -24,3 +24,10 @@ class ScheduleService:
         if not schedule:
             raise NoResultFound("Schedule not found")
         return schedule
+
+    async def get_latest_schedule(self) -> Schedule:
+        """Get the most recently created schedule."""
+        schedule = await self.repo.find_latest()
+        if not schedule:
+            raise NoResultFound("No schedules found")
+        return schedule

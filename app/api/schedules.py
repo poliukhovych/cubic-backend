@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any
+from uuid import UUID
 
-from app.core.deps import get_schedule_generation_service
-from app.schemas.schedule import ScheduleGenerationResponse
+from app.core.deps import get_schedule_generation_service, get_schedule_service
+from app.schemas.schedule import ScheduleGenerationResponse, ScheduleResponse
 from app.services.schedule_generation_service import ScheduleGenerationService
+from app.services.schedule_service import ScheduleService
+from sqlalchemy.exc import NoResultFound
 
 router = APIRouter(
     prefix="/schedules"
@@ -47,3 +50,41 @@ async def generate_new_schedule(
         # Обробити специфічні помилки сервісу
         print(f"Error during schedule generation: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
+
+
+@router.get("/latest", response_model=ScheduleResponse)
+async def get_latest_schedule(
+    service: ScheduleService = Depends(get_schedule_service)
+):
+    """
+    Отримує останній створений розклад.
+    
+    Повертає розклад з найбільш пізньою датою створення.
+    """
+    try:
+        schedule = await service.get_latest_schedule()
+        return ScheduleResponse.model_validate(schedule)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="No schedules found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+@router.get("/{schedule_id}", response_model=ScheduleResponse)
+async def get_schedule_by_id(
+    schedule_id: UUID,
+    service: ScheduleService = Depends(get_schedule_service)
+):
+    """
+    Отримує розклад за його ID.
+    
+    Args:
+        schedule_id: UUID розкладу, який потрібно отримати
+    """
+    try:
+        schedule = await service.get_schedule_by_id(schedule_id)
+        return ScheduleResponse.model_validate(schedule)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail=f"Schedule with id {schedule_id} not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
