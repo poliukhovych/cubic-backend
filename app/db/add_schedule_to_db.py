@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db.models import (
     User, UserRole,
     Teacher, Student, Admin, Room, Group, Course, Lesson, Timeslot, Schedule, Assignment,
-    GroupCourse, TeacherCourse, RegistrationRequest, RegistrationStatus
+    GroupCourse, TeacherCourse, StudentGroup, RegistrationRequest, RegistrationStatus
 )
 from app.db.models.common_enums import TimeslotFrequency, CourseFrequency, TeacherStatus, StudentStatus
 from app.core.config import settings
@@ -460,6 +460,28 @@ def get_hardcoded_data():
         ),
     ]
     
+    # ========== STUDENT_GROUP (зв'язки студентів з групами) ==========
+    # Ці зв'язки потрібні для SQL join у методі find_by_teacher_id
+    # student1 (Іваненко) -> group1 (ТТП-32) -> course1 (Математичний аналіз) -> teacher1 (Петренко)
+    # student2 (Шевченко) -> group2 (МІ-31) -> course2 (Програмування) -> teacher2 (Коваленко)
+    # student3 (Мельник) -> group1 (ТТП-32) -> course1 (Математичний аналіз) -> teacher1 (Петренко)
+    # group3 (ІПЗ-31) -> course3 (Бази даних) -> teacher3 (Сидоренко)
+    # group4 (ІПЗ-32) -> course2 (Програмування) -> teacher2 (Коваленко)
+    student_groups = [
+        StudentGroup(
+            student_id=student1_id,
+            group_id=group1_id  # ТТП-32
+        ),
+        StudentGroup(
+            student_id=student2_id,
+            group_id=group2_id  # МІ-31
+        ),
+        StudentGroup(
+            student_id=student3_id,
+            group_id=group1_id  # ТТП-32
+        ),
+    ]
+    
     # ========== ЗАЯВКИ НА РЕЄСТРАЦІЮ (REGISTRATION REQUESTS) ==========
     registration_requests = [
         # Заявка студента в очікуванні
@@ -543,6 +565,7 @@ def get_hardcoded_data():
         'assignments_data': assignments_data,  # Дані для assignments (без timeslot_id)
         'group_courses': group_courses,
         'teacher_courses': teacher_courses,
+        'student_groups': student_groups,
         'registration_requests': registration_requests,
     }
 
@@ -641,6 +664,13 @@ def add_to_database_sync(session: Session, data: dict):
     session.commit()
     print("✓ TeacherCourse додані\n")
     
+    # Додаємо зв'язки StudentGroup (потрібні для SQL join)
+    print(f"Додаю {len(data['student_groups'])} зв'язків StudentGroup...")
+    for sg in data['student_groups']:
+        session.merge(sg)
+    session.commit()
+    print("✓ StudentGroup додані\n")
+    
     # Додаємо призначення (assignments)
     # Спочатку знаходимо timeslot_id для кожного призначення
     print(f"Додаю {len(data['assignments_data'])} призначень...")
@@ -733,6 +763,13 @@ async def init_schedule_data():
                     session.merge(registration)  # merge оновить існуючі або додасть нові
                 session.commit()
                 print(f"✓ {len(data['registration_requests'])} заявок на реєстрацію перевірено/додано\n")
+                
+                # Завжди додаємо зв'язки StudentGroup через merge (не створить дублікатів)
+                print("Додаю зв'язки StudentGroup (merge - не створить дублікатів)...\n")
+                for sg in data['student_groups']:
+                    session.merge(sg)  # merge оновить існуючі або додасть нові
+                session.commit()
+                print(f"✓ {len(data['student_groups'])} зв'язків StudentGroup перевірено/додано\n")
                 
                 _initialization_completed = True
                 return

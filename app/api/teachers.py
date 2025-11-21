@@ -7,9 +7,11 @@ from app.services.course_service import CourseService
 from app.services.group_service import GroupService
 from app.services.assignment_service import AssignmentService
 from app.services.schedule_service import ScheduleService
-from app.core.deps import get_teacher_service, get_course_service, get_group_service, get_assignment_service, get_schedule_service
+from app.repositories.students_repository import StudentRepository
+from app.core.deps import get_teacher_service, get_course_service, get_group_service, get_assignment_service, get_schedule_service, get_student_repository
 from app.schemas.teacher import TeacherCreate, TeacherUpdate, TeacherResponse, TeacherListResponse
 from app.schemas.assignment import AssignmentResponse
+from app.schemas.student import StudentOut
 
 router = APIRouter()
 
@@ -180,3 +182,29 @@ async def get_teacher_schedule(
     
     # Конвертуємо в схему відповіді
     return [AssignmentResponse.model_validate(assignment) for assignment in assignments]
+
+
+@router.get("/{teacher_id}/students", response_model=List[StudentOut])
+async def get_teacher_students(
+    teacher_id: uuid.UUID,
+    teacher_service: TeacherService = Depends(get_teacher_service),
+    student_repository: StudentRepository = Depends(get_student_repository)
+) -> List[StudentOut]:
+    """
+    Отримує список студентів (груп) конкретного викладача.
+    
+    Повертає всіх студентів, які належать до груп, де викладач викладає курси.
+    """
+    # Перевіряємо, чи існує викладач
+    teacher = await teacher_service.get_teacher_by_id(teacher_id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Teacher with id {teacher_id} not found"
+        )
+    
+    # Отримуємо студентів викладача
+    students = await student_repository.find_by_teacher_id(teacher_id)
+    
+    # Конвертуємо в схему відповіді
+    return [StudentOut.model_validate(student) for student in students]

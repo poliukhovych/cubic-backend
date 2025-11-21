@@ -15,6 +15,7 @@ from app.repositories.assignment_repository import AssignmentRepository
 from app.repositories.timeslot_repository import TimeslotRepository
 from app.repositories.availability_repository import AvailabilityRepository
 from app.repositories.constraint_repository import ConstraintRepository
+from app.repositories.students_repository import StudentRepository
 
 # --- Import Services ---
 from app.services.group_service import GroupService
@@ -97,6 +98,11 @@ def get_constraint_repository(
     session: AsyncSession = Depends(get_session)
 ) -> ConstraintRepository:
     return ConstraintRepository(session)
+
+def get_student_repository(
+    session: AsyncSession = Depends(get_session)
+) -> StudentRepository:
+    return StudentRepository(session)
 
 
 # --- Service Providers ---

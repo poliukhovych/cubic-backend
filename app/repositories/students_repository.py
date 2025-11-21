@@ -6,6 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.people.student import Student
 from app.db.models.joins.student_group import StudentGroup
+from app.db.models.catalog.group import Group
+from app.db.models.joins.group_course import GroupCourse
+from app.db.models.joins.teacher_course import TeacherCourse
 
 
 class StudentRepository:
@@ -36,6 +39,24 @@ class StudentRepository:
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def find_by_teacher_id(self, teacher_id: UUID) -> List[Student]:
+        """
+        Finds all students that belong to groups taught by a specific teacher.
+        The relationship is: Teacher -> TeacherCourse -> GroupCourse -> Group -> StudentGroup -> Student
+        """
+        stmt = (
+            select(Student)
+            .join(StudentGroup, StudentGroup.student_id == Student.student_id)
+            .join(Group, Group.group_id == StudentGroup.group_id)
+            .join(GroupCourse, GroupCourse.group_id == Group.group_id)
+            .join(TeacherCourse, TeacherCourse.course_id == GroupCourse.course_id)
+            .where(TeacherCourse.teacher_id == teacher_id)
+            .distinct()
+            .order_by(Student.last_name, Student.first_name)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().unique().all())
 
     async def get(self, student_id: UUID) -> Optional[Student]:
         """Legacy method, use find_by_id instead."""
