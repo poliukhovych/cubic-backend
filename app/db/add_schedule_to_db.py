@@ -12,8 +12,8 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from app.db.models import (
     User, UserRole,
-    Teacher, Student, Room, Group, Course, Lesson, Timeslot, Schedule, Assignment,
-    GroupCourse, TeacherCourse
+    Teacher, Student, Admin, Room, Group, Course, Lesson, Timeslot, Schedule, Assignment,
+    GroupCourse, TeacherCourse, RegistrationRequest, RegistrationStatus
 )
 from app.db.models.common_enums import TimeslotFrequency, CourseFrequency, TeacherStatus, StudentStatus
 from app.core.config import settings
@@ -56,6 +56,9 @@ def get_hardcoded_data():
     """
     
     # ========== UUID для всіх об'єктів ==========
+    # User для адміністратора (використовуємо user_id з токену)
+    user_admin_id = uuid.UUID('4a9465b5-14ca-4b10-b6e0-20ca83eb6790')
+    
     # Users для викладачів
     user_teacher1_id = uuid.UUID('00000000-0000-0000-0000-000000000011')
     user_teacher2_id = uuid.UUID('00000000-0000-0000-0000-000000000012')
@@ -65,6 +68,9 @@ def get_hardcoded_data():
     user_student1_id = uuid.UUID('00000000-0000-0000-0000-000000000021')
     user_student2_id = uuid.UUID('00000000-0000-0000-0000-000000000022')
     user_student3_id = uuid.UUID('00000000-0000-0000-0000-000000000023')
+    
+    # Адміністратор
+    admin_id = uuid.UUID('99999999-9999-9999-9999-999999999999')
     
     # Викладачі
     teacher1_id = uuid.UUID('11111111-1111-1111-1111-111111111111')
@@ -95,8 +101,25 @@ def get_hardcoded_data():
     # Розклад
     schedule_id = uuid.UUID('ffffffff-ffff-ffff-ffff-ffffffffffff')
     
-    # ========== USERS (для викладачів та студентів) ==========
+    # Заявки на реєстрацію
+    registration1_id = uuid.UUID('aaaaaaaa-0000-0000-0000-000000000001')
+    registration2_id = uuid.UUID('aaaaaaaa-0000-0000-0000-000000000002')
+    registration3_id = uuid.UUID('aaaaaaaa-0000-0000-0000-000000000003')
+    registration4_id = uuid.UUID('aaaaaaaa-0000-0000-0000-000000000004')
+    registration5_id = uuid.UUID('aaaaaaaa-0000-0000-0000-000000000005')
+    
+    # ========== USERS (для адміністратора, викладачів та студентів) ==========
     users = [
+        User(
+            user_id=user_admin_id,
+            google_sub="google_sub_admin_1",
+            email="admin@example.com",
+            first_name="Олександр",
+            last_name="Адміністратор",
+            patronymic="Петрович",
+            role=UserRole.ADMIN,
+            is_active=True
+        ),
         User(
             user_id=user_teacher1_id,
             google_sub="google_sub_teacher_1",
@@ -158,6 +181,15 @@ def get_hardcoded_data():
             is_active=True
         ),
     ]
+    
+    # ========== АДМІНІСТРАТОР ==========
+    admin = Admin(
+        admin_id=admin_id,
+        user_id=user_admin_id,
+        first_name="Олександр",
+        last_name="Адміністратор",
+        patronymic="Петрович"
+    )
     
     # ========== ВИКЛАДАЧІ ==========
     teachers = [
@@ -428,8 +460,78 @@ def get_hardcoded_data():
         ),
     ]
     
+    # ========== ЗАЯВКИ НА РЕЄСТРАЦІЮ (REGISTRATION REQUESTS) ==========
+    registration_requests = [
+        # Заявка студента в очікуванні
+        RegistrationRequest(
+            request_id=registration1_id,
+            google_sub="google_sub_registration_1",
+            email="newstudent1@university.edu",
+            first_name="Олег",
+            last_name="Ткаченко",
+            patronymic="Сергійович",
+            requested_role=UserRole.STUDENT,
+            status=RegistrationStatus.PENDING,
+            group_id=group1_id,
+            admin_note=None
+        ),
+        # Заявка викладача в очікуванні
+        RegistrationRequest(
+            request_id=registration2_id,
+            google_sub="google_sub_registration_2",
+            email="newteacher1@university.edu",
+            first_name="Наталія",
+            last_name="Бондаренко",
+            patronymic="Ігорівна",
+            requested_role=UserRole.TEACHER,
+            status=RegistrationStatus.PENDING,
+            group_id=None,
+            admin_note=None
+        ),
+        # Заявка студента схвалена
+        RegistrationRequest(
+            request_id=registration3_id,
+            google_sub="google_sub_registration_3",
+            email="approvedstudent@university.edu",
+            first_name="Віктор",
+            last_name="Морозенко",
+            patronymic="Андрійович",
+            requested_role=UserRole.STUDENT,
+            status=RegistrationStatus.APPROVED,
+            group_id=group2_id,
+            admin_note="Схвалено адміністратором"
+        ),
+        # Заявка викладача відхилена
+        RegistrationRequest(
+            request_id=registration4_id,
+            google_sub="google_sub_registration_4",
+            email="rejectedteacher@university.edu",
+            first_name="Сергій",
+            last_name="Лисенко",
+            patronymic="Петрович",
+            requested_role=UserRole.TEACHER,
+            status=RegistrationStatus.REJECTED,
+            group_id=None,
+            admin_note="Недостатньо кваліфікації"
+        ),
+        # Заявка студента в очікуванні без групи
+        RegistrationRequest(
+            request_id=registration5_id,
+            google_sub="google_sub_registration_5",
+            email="newstudent2@university.edu",
+            first_name="Катерина",
+            last_name="Романенко",
+            patronymic="Дмитрівна",
+            requested_role=UserRole.STUDENT,
+            status=RegistrationStatus.PENDING,
+            group_id=None,
+            admin_note=None
+        ),
+    ]
+    
     return {
         'users': users,
+        'admin': admin,
         'teachers': teachers,
         'students': students,
         'rooms': rooms,
@@ -441,6 +543,7 @@ def get_hardcoded_data():
         'assignments_data': assignments_data,  # Дані для assignments (без timeslot_id)
         'group_courses': group_courses,
         'teacher_courses': teacher_courses,
+        'registration_requests': registration_requests,
     }
 
 
@@ -470,6 +573,12 @@ def add_to_database_sync(session: Session, data: dict):
     session.commit()
     print("✓ Часові слоти додані\n")
     
+    # Додаємо адміністратора
+    print("Додаю адміністратора...")
+    session.merge(data['admin'])
+    session.commit()
+    print("✓ Адміністратор додано\n")
+    
     # Додаємо викладачів
     print(f"Додаю {len(data['teachers'])} викладачів...")
     for teacher in data['teachers']:
@@ -490,6 +599,13 @@ def add_to_database_sync(session: Session, data: dict):
         session.merge(group)
     session.commit()
     print("✓ Групи додані\n")
+    
+    # Додаємо заявки на реєстрацію (після groups, бо можуть мати group_id)
+    print(f"Додаю {len(data['registration_requests'])} заявок на реєстрацію...")
+    for registration in data['registration_requests']:
+        session.merge(registration)
+    session.commit()
+    print("✓ Заявки на реєстрацію додані\n")
     
     # Додаємо студентів (після groups, бо students мають group_id)
     print(f"Додаю {len(data['students'])} студентів...")
@@ -588,17 +704,42 @@ async def init_schedule_data():
                 select(Schedule).where(Schedule.schedule_id == uuid.UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"))
             )
             
-            if existing_schedule:
-                print("ℹ️  Дані розкладу вже існують, пропускаємо ініціалізацію\n")
-                _initialization_completed = True
-                return
-            
             # Отримуємо хардкоджені дані
             data = get_hardcoded_data()
             
-            # Додаємо дані в БД
-            add_to_database_sync(session, data)
-            _initialization_completed = True
+            if existing_schedule:
+                print("ℹ️  Розклад вже існує, перевіряю адміністратора та заявки...\n")
+                
+                # Перевіряємо та додаємо адміністратора
+                existing_admin_user = session.scalar(
+                    select(User).where(User.user_id == data['admin'].user_id)
+                )
+                if not existing_admin_user:
+                    print("Додаю адміністратора...\n")
+                    # Спочатку додаємо User
+                    admin_user = next(u for u in data['users'] if u.user_id == data['admin'].user_id)
+                    session.merge(admin_user)
+                    session.commit()
+                    # Потім додаємо Admin
+                    session.merge(data['admin'])
+                    session.commit()
+                    print("✓ Адміністратор додано\n")
+                else:
+                    print("ℹ️  Адміністратор вже існує\n")
+                
+                # Завжди додаємо заявки через merge (не створить дублікатів, якщо вони вже є)
+                print("Додаю заявки на реєстрацію (merge - не створить дублікатів)...\n")
+                for registration in data['registration_requests']:
+                    session.merge(registration)  # merge оновить існуючі або додасть нові
+                session.commit()
+                print(f"✓ {len(data['registration_requests'])} заявок на реєстрацію перевірено/додано\n")
+                
+                _initialization_completed = True
+                return
+            else:
+                # Додаємо всі дані, включаючи заявки
+                add_to_database_sync(session, data)
+                _initialization_completed = True
         except Exception as e:
             print(f"\n❌ Помилка при ініціалізації розкладу: {e}")
             session.rollback()
