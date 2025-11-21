@@ -2,16 +2,11 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from uuid import UUID
 
+from app.core.deps import get_group_service
 from app.services.group_service import GroupService
 from app.schemas.group import GroupCreate, GroupUpdate, GroupResponse, GroupListResponse
-from app.core.deps import get_session
-from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
-
-
-async def get_group_service(session: AsyncSession = Depends(get_session)) -> GroupService:
-    return GroupService(session)
 
 
 @router.get("/", response_model=GroupListResponse)

@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Boolean, ForeignKey, UniqueConstraint
+from sqlalchemy import String, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.models.base import Base
+from app.db.models.common_enums import StudentStatus, StudentStatusEnum
 import uuid
 
 
@@ -21,7 +22,18 @@ class Student(Base):
         index=True,
     )
 
+    group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("groups.group_id", onupdate="CASCADE", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     patronymic: Mapped[str | None] = mapped_column(String(100))
-    confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    status: Mapped[StudentStatus] = mapped_column(
+        StudentStatusEnum,
+        nullable=False,
+        default=StudentStatus.PENDING
+    )

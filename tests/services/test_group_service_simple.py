@@ -23,7 +23,7 @@ class TestGroupServiceSimple:
     def test_group_service_initialization(self, mock_session):
         """Test that GroupService initializes correctly"""
         service = GroupService(mock_session)
-        assert service._repository is not None
+        assert service.repo is not None
 
     @pytest.mark.asyncio
     async def test_group_service_has_required_methods(self, group_service):

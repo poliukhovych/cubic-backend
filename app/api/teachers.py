@@ -15,8 +15,7 @@ router = APIRouter()
 async def get_all_teachers(
     teacher_service: TeacherService = Depends(get_teacher_service)
 ) -> TeacherListResponse:
-    teachers = await teacher_service.get_all_teachers()
-    return TeacherListResponse(teachers=teachers, total=len(teachers))
+    return await teacher_service.get_all_teachers()
 
 
 @router.get("/{teacher_id}", response_model=TeacherResponse)
@@ -52,7 +51,7 @@ async def get_teacher_courses(
     teacher_id: uuid.UUID,
     course_service: CourseService = Depends(get_course_service)
 ) -> List[dict]:
-    teacher_service = TeacherService(course_service._repository._session)
+    teacher_service = TeacherService(course_service.repo._session)
     teacher = await teacher_service.get_teacher_by_id(teacher_id)
     if not teacher:
         raise HTTPException(
@@ -69,7 +68,7 @@ async def get_teacher_groups(
     teacher_id: uuid.UUID,
     group_service: GroupService = Depends(get_group_service)
 ) -> List[dict]:
-    teacher_service = TeacherService(group_service._repository._session)
+    teacher_service = TeacherService(group_service.repo._session)
     teacher = await teacher_service.get_teacher_by_id(teacher_id)
     if not teacher:
         raise HTTPException(

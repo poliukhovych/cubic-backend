@@ -47,15 +47,17 @@ class StudentRepository:
             first_name: str,
             last_name: str,
             patronymic: str | None = None,
-            confirmed: bool = False,
+            status: str = "pending",
             user_id: Optional[UUID] = None,
+            group_id: Optional[UUID] = None,
     ) -> Student:
         obj = Student(
             first_name=first_name,
             last_name=last_name,
             patronymic=patronymic,
-            confirmed=confirmed,
+            status=status,
             user_id=user_id,
+            group_id=group_id,
         )
         self._session.add(obj)
         await self._session.flush()
@@ -69,8 +71,9 @@ class StudentRepository:
             first_name: str | None = None,
             last_name: str | None = None,
             patronymic: str | None = None,
-            confirmed: bool | None = None,
+            status: str | None = None,
             user_id: Optional[UUID] = None,
+            group_id: Optional[UUID] = None,
     ) -> Optional[Student]:
         update_data = {}
         if first_name is not None:
@@ -79,10 +82,12 @@ class StudentRepository:
             update_data["last_name"] = last_name
         if patronymic is not None:
             update_data["patronymic"] = patronymic
-        if confirmed is not None:
-            update_data["confirmed"] = confirmed
+        if status is not None:
+            update_data["status"] = status
         if user_id is not None:
             update_data["user_id"] = user_id
+        if group_id is not None:
+            update_data["group_id"] = group_id
 
         if not update_data:
             return await self.find_by_id(student_id)
@@ -112,8 +117,11 @@ class StudentRepository:
         res = await self._session.execute(stmt)
         return res.scalar_one_or_none() is not None
 
-    async def confirm_student(self, student_id: UUID) -> Optional[Student]:
-        return await self.update(student_id, confirmed=True)
+    async def activate_student(self, student_id: UUID) -> Optional[Student]:
+        return await self.update(student_id, status="active")
+
+    async def deactivate_student(self, student_id: UUID) -> Optional[Student]:
+        return await self.update(student_id, status="inactive")
 
     async def exists(self, student_id: UUID) -> bool:
         stmt = select(Student.student_id).where(Student.student_id == student_id)

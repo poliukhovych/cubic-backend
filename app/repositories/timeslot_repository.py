@@ -4,8 +4,7 @@ from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.scheduling.timeslot import Timeslot
-
-_UNSET = object()
+from app.utils.unset import UNSET
 
 
 class TimeslotRepository:
@@ -67,13 +66,13 @@ class TimeslotRepository:
         self,
         timeslot_id: int,
         *,
-        day: Union[int, None, object] = _UNSET,
-        lesson_id: Union[int, None, object] = _UNSET,
+        day: Union[int, None, object] = UNSET,
+        lesson_id: Union[int, None, object] = UNSET,
     ) -> Optional[Timeslot]:
         update_data = {}
-        if day is not _UNSET:
+        if day is not UNSET:
             update_data["day"] = day
-        if lesson_id is not _UNSET:
+        if lesson_id is not UNSET:
             update_data["lesson_id"] = lesson_id
 
         if not update_data:
@@ -103,4 +102,3 @@ class TimeslotRepository:
         stmt = select(Timeslot.timeslot_id).where(Timeslot.timeslot_id == timeslot_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
-

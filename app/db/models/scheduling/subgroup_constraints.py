@@ -6,10 +6,19 @@ import uuid
 
 
 class SubgroupConstraints(Base):
+    """
+    Defines constraints for courses that require group splitting,
+    specifying how many subgroups are needed.
+    """
     __tablename__ = "subgroup_constraints"
     __table_args__ = (
-        UniqueConstraint("schedule_id", "group_id", "course_id", name="pk_subgroup_constraints"),
-        CheckConstraint("subgroups_count > 0", name="ck_subgroup_constraints_count"),
+        UniqueConstraint(
+            "schedule_id", "group_id", "course_id", 
+            name="pk_subgroup_constraints"
+        ),
+        CheckConstraint(
+            "subgroups_count > 0", name="ck_subgroup_constraints_count"
+        ),
     )
 
     schedule_id: Mapped[uuid.UUID] = mapped_column(

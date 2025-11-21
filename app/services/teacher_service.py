@@ -1,20 +1,21 @@
-from typing import List, Optional
+from typing import Optional
 import uuid
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.repositories.teacher_repository import TeacherRepository
-from app.schemas.teacher import TeacherCreate, TeacherUpdate, TeacherResponse
+from app.schemas.teacher import TeacherCreate, TeacherUpdate, TeacherResponse, TeacherListResponse
 
 
 class TeacherService:
-    def __init__(self, session: AsyncSession):
-        self._session = session
-        self._repository = TeacherRepository(session)
+    def __init__(self, repo: TeacherRepository):
+        self._repository = repo
 
-    async def get_all_teachers(self) -> List[TeacherResponse]:
+    async def get_all_teachers(self) -> TeacherListResponse:
         teachers = await self._repository.find_all()
-        return [TeacherResponse.model_validate(teacher) for teacher in teachers]
+        total = await self._repository.count()
+        return TeacherListResponse(
+            teachers=[TeacherResponse.model_validate(teacher) for teacher in teachers],
+            total=total
+        )
 
     async def get_teacher_by_id(self, teacher_id: uuid.UUID) -> Optional[TeacherResponse]:
         teacher = await self._repository.find_by_id(teacher_id)
@@ -33,10 +34,10 @@ class TeacherService:
             first_name=teacher_data.first_name,
             last_name=teacher_data.last_name,
             patronymic=teacher_data.patronymic,
-            confirmed=teacher_data.confirmed,
+            status=teacher_data.status,
             user_id=teacher_data.user_id
         )
-        await self._session.commit()
+
         return TeacherResponse.model_validate(teacher)
 
     async def update_teacher(self, teacher_id: uuid.UUID, teacher_data: TeacherUpdate) -> Optional[TeacherResponse]:
@@ -45,24 +46,26 @@ class TeacherService:
             first_name=teacher_data.first_name,
             last_name=teacher_data.last_name,
             patronymic=teacher_data.patronymic,
-            confirmed=teacher_data.confirmed,
+            status=teacher_data.status,
             user_id=teacher_data.user_id
         )
+
         if teacher:
-            await self._session.commit()
             return TeacherResponse.model_validate(teacher)
         return None
 
     async def delete_teacher(self, teacher_id: uuid.UUID) -> bool:
-        success = await self._repository.delete(teacher_id)
-        if success:
-            await self._session.commit()
-        return success
+        return await self._repository.delete(teacher_id)
 
-    async def confirm_teacher(self, teacher_id: uuid.UUID) -> Optional[TeacherResponse]:
-        teacher = await self._repository.confirm_teacher(teacher_id)
+    async def activate_teacher(self, teacher_id: uuid.UUID) -> Optional[TeacherResponse]:
+        teacher = await self._repository.activate_teacher(teacher_id)
         if teacher:
-            await self._session.commit()
+            return TeacherResponse.model_validate(teacher)
+        return None
+
+    async def deactivate_teacher(self, teacher_id: uuid.UUID) -> Optional[TeacherResponse]:
+        teacher = await self._repository.deactivate_teacher(teacher_id)
+        if teacher:
             return TeacherResponse.model_validate(teacher)
         return None
 

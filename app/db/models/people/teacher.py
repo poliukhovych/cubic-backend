@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Boolean, UniqueConstraint, ForeignKey
+from sqlalchemy import String, UniqueConstraint, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.models.base import Base
+from app.db.models.common_enums import TeacherStatus, TeacherStatusEnum
 import uuid
 
 
@@ -25,4 +26,8 @@ class Teacher(Base):
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     patronymic: Mapped[str] = mapped_column(String(100), nullable=False)
-    confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    status: Mapped[TeacherStatus] = mapped_column(
+        TeacherStatusEnum,
+        nullable=False,
+        default=TeacherStatus.PENDING
+    )

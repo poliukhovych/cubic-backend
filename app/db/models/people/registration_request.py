@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, DateTime, func, Enum as SQLEnum, Text
+from sqlalchemy import String, DateTime, func, Enum as SQLEnum, Text, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, CITEXT
 from app.db.models.base import Base
 from app.db.models.people.user import UserRole
@@ -41,6 +41,14 @@ class RegistrationRequest(Base):
     )
 
     admin_note: Mapped[str | None] = mapped_column(Text())
+    
+    # Optional group assignment (for students)
+    group_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("groups.group_id", onupdate="CASCADE", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
 
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

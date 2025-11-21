@@ -3,7 +3,7 @@ Schemas for authentication and authorization
 """
 import uuid
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, computed_field
 from app.db.models.people.user import UserRole
 
 
@@ -52,24 +52,36 @@ class AdminLoginRequest(BaseModel):
 
 class UserResponse(BaseModel):
     """User information in response"""
-    user_id: uuid.UUID
-    email: str
-    first_name: str
-    last_name: str
-    patronymic: Optional[str] = None
-    role: UserRole
-    is_active: bool
+    user_id: uuid.UUID = Field(..., alias="userId")
+    email: str = Field(...)
+    first_name: str = Field(..., alias="firstName")
+    last_name: str = Field(..., alias="lastName")
+    patronymic: Optional[str] = Field(None)
+    role: UserRole = Field(...)
+    is_active: bool = Field(..., alias="isActive")
+    
+    @computed_field
+    @property
+    def full_name(self) -> str:
+        """Computed full name field"""
+        if self.patronymic:
+            return f"{self.last_name} {self.first_name} {self.patronymic}"
+        return f"{self.last_name} {self.first_name}"
     
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class AuthResponse(BaseModel):
     """Response after successful authentication"""
-    access_token: str = Field(..., description="JWT access token")
-    token_type: str = Field(default="bearer", description="Token type")
+    access_token: str = Field(..., alias="accessToken", description="JWT access token")
+    token_type: str = Field(default="bearer", alias="tokenType", description="Token type")
     user: UserResponse = Field(..., description="User information")
-    needs_role_selection: bool = Field(default=False, description="True if user needs to select role")
+    needs_role_selection: bool = Field(default=False, alias="needsRoleSelection", description="True if user needs to select role")
+    
+    class Config:
+        populate_by_name = True
 
 
 class TokenPayload(BaseModel):

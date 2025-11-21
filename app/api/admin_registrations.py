@@ -1,6 +1,7 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select
 from datetime import datetime, timezone
 
 from app.db.session import get_db
@@ -9,13 +10,15 @@ from app.db.models.people.user import User, UserRole
 from app.db.models.people.teacher import Teacher
 from app.db.models.people.student import Student
 from app.db.models.people.registration_request import RegistrationRequest, RegistrationStatus
+from app.db.models.catalog.group import Group
 from app.schemas.registration import (
     RegistrationRequestOut,
+    UpdateRegistrationRequest,
     ApproveRegistrationRequest,
     RejectRegistrationRequest,
 )
 
-router = APIRouter(prefix="/admin/registrations", tags=["Admin Registrations"])
+router = APIRouter(prefix="/admin/registrations")
 
 
 @router.get("/", response_model=list[RegistrationRequestOut])
@@ -24,26 +27,127 @@ async def list_registration_requests(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_admin),
 ):
-    stmt = select(RegistrationRequest)
+    """
+    List all registration requests with optional status filter.
+    Includes group name if group_id is set.
+    """
+    stmt = select(RegistrationRequest, Group.name).outerjoin(
+        Group, RegistrationRequest.group_id == Group.group_id
+    )
     if status_filter:
         stmt = stmt.where(RegistrationRequest.status == status_filter)
+    stmt = stmt.order_by(RegistrationRequest.created_at.desc())
+    
     result = await db.execute(stmt)
-    return list(result.scalars().all())
+    rows = result.all()
+    
+    # Convert to RegistrationRequestOut with group_name
+    requests = []
+    for reg, group_name in rows:
+        reg_dict = {
+            "request_id": reg.request_id,
+            "email": reg.email,
+            "first_name": reg.first_name,
+            "last_name": reg.last_name,
+            "patronymic": reg.patronymic,
+            "requested_role": reg.requested_role,
+            "status": reg.status.value,
+            "created_at": reg.created_at,
+            "admin_note": reg.admin_note,
+            "group_id": reg.group_id,
+            "group_name": group_name,
+            "subjects": [],  # TODO: implement if needed
+        }
+        requests.append(RegistrationRequestOut(**reg_dict))
+    
+    return requests
+
+
+@router.put("/{request_id}", response_model=RegistrationRequestOut)
+async def update_registration_request(
+    request_id: uuid.UUID,
+    body: UpdateRegistrationRequest,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    """
+    Update registration request before approval.
+    Allows admin to modify role, notes, and link to groups/subjects.
+    """
+    # Load request with group
+    stmt = select(RegistrationRequest, Group.name).outerjoin(
+        Group, RegistrationRequest.group_id == Group.group_id
+    ).where(RegistrationRequest.request_id == request_id)
+    result = await db.execute(stmt)
+    row = result.first()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+    
+    reg, group_name = row
+    
+    # Only allow updates for pending requests
+    if reg.status != RegistrationStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Can only update pending requests"
+        )
+    
+    # Update fields if provided
+    update_data = body.model_dump(exclude_unset=True, by_alias=False)
+    
+    for field, value in update_data.items():
+        if hasattr(reg, field) and value is not None:
+            setattr(reg, field, value)
+    
+    reg.updated_at = datetime.now(timezone.utc)
+    
+    await db.commit()
+    await db.refresh(reg)
+    
+    # Reload group name if group_id changed
+    if reg.group_id:
+        group_stmt = select(Group).where(Group.group_id == reg.group_id)
+        group_result = await db.execute(group_stmt)
+        group = group_result.scalar_one_or_none()
+        group_name = group.name if group else None
+    else:
+        group_name = None
+    
+    # Convert to RegistrationRequestOut
+    reg_dict = {
+        "request_id": reg.request_id,
+        "email": reg.email,
+        "first_name": reg.first_name,
+        "last_name": reg.last_name,
+        "patronymic": reg.patronymic,
+        "requested_role": reg.requested_role,
+        "status": reg.status.value,
+        "created_at": reg.created_at,
+        "admin_note": reg.admin_note,
+        "group_id": reg.group_id,
+        "group_name": group_name,
+        "subjects": [],
+    }
+    return RegistrationRequestOut(**reg_dict)
 
 
 @router.patch("/{request_id}/approve", response_model=RegistrationRequestOut)
 async def approve_registration_request(
-    request_id: str,
+    request_id: uuid.UUID,
     body: ApproveRegistrationRequest,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_admin),
 ):
-    # Load request
-    stmt = select(RegistrationRequest).where(RegistrationRequest.request_id == request_id)
+    # Load request with group
+    stmt = select(RegistrationRequest, Group.name).outerjoin(
+        Group, RegistrationRequest.group_id == Group.group_id
+    ).where(RegistrationRequest.request_id == request_id)
     result = await db.execute(stmt)
-    reg = result.scalar_one_or_none()
-    if not reg:
+    row = result.first()
+    if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+    
+    reg, group_name = row
     if reg.status != RegistrationStatus.PENDING:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request already processed")
 
@@ -81,11 +185,11 @@ async def approve_registration_request(
                 first_name=user.first_name,
                 last_name=user.last_name,
                 patronymic=user.patronymic or "",
-                confirmed=True,
+                status="active",
             )
             db.add(teacher)
         else:
-            teacher.confirmed = True
+            teacher.status = "active"
 
     if final_role == UserRole.STUDENT:
         s_stmt = select(Student).where(Student.user_id == user.user_id)
@@ -94,14 +198,18 @@ async def approve_registration_request(
         if not student:
             student = Student(
                 user_id=user.user_id,
+                group_id=reg.group_id,  # Set group_id from registration request
                 first_name=user.first_name,
                 last_name=user.last_name,
                 patronymic=user.patronymic,
-                confirmed=True,
+                status="active",
             )
             db.add(student)
         else:
-            student.confirmed = True
+            # Update group_id if it was set in registration request
+            if reg.group_id:
+                student.group_id = reg.group_id
+            student.status = "active"
 
     # Update request status
     reg.status = RegistrationStatus.APPROVED
@@ -110,21 +218,51 @@ async def approve_registration_request(
 
     await db.commit()
     await db.refresh(reg)
-    return reg
+    
+    # Reload group name if needed
+    if reg.group_id:
+        group_stmt = select(Group).where(Group.group_id == reg.group_id)
+        group_result = await db.execute(group_stmt)
+        group = group_result.scalar_one_or_none()
+        group_name = group.name if group else None
+    else:
+        group_name = None
+    
+    # Convert to RegistrationRequestOut
+    reg_dict = {
+        "request_id": reg.request_id,
+        "email": reg.email,
+        "first_name": reg.first_name,
+        "last_name": reg.last_name,
+        "patronymic": reg.patronymic,
+        "requested_role": reg.requested_role,
+        "status": reg.status.value,
+        "created_at": reg.created_at,
+        "admin_note": reg.admin_note,
+        "group_id": reg.group_id,
+        "group_name": group_name,
+        "subjects": [],
+    }
+    return RegistrationRequestOut(**reg_dict)
 
 
 @router.patch("/{request_id}/reject", response_model=RegistrationRequestOut)
 async def reject_registration_request(
-    request_id: str,
+    request_id: uuid.UUID,
     body: RejectRegistrationRequest,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_admin),
 ):
-    stmt = select(RegistrationRequest).where(RegistrationRequest.request_id == request_id)
+    # Load request with group
+    stmt = select(RegistrationRequest, Group.name).outerjoin(
+        Group, RegistrationRequest.group_id == Group.group_id
+    ).where(RegistrationRequest.request_id == request_id)
     result = await db.execute(stmt)
-    reg = result.scalar_one_or_none()
-    if not reg:
+    row = result.first()
+    if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+    
+    reg, group_name = row
     if reg.status != RegistrationStatus.PENDING:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request already processed")
 
@@ -134,4 +272,29 @@ async def reject_registration_request(
 
     await db.commit()
     await db.refresh(reg)
-    return reg
+    
+    # Reload group name if needed
+    if reg.group_id:
+        group_stmt = select(Group).where(Group.group_id == reg.group_id)
+        group_result = await db.execute(group_stmt)
+        group = group_result.scalar_one_or_none()
+        group_name = group.name if group else None
+    else:
+        group_name = None
+    
+    # Convert to RegistrationRequestOut
+    reg_dict = {
+        "request_id": reg.request_id,
+        "email": reg.email,
+        "first_name": reg.first_name,
+        "last_name": reg.last_name,
+        "patronymic": reg.patronymic,
+        "requested_role": reg.requested_role,
+        "status": reg.status.value,
+        "created_at": reg.created_at,
+        "admin_note": reg.admin_note,
+        "group_id": reg.group_id,
+        "group_name": group_name,
+        "subjects": [],
+    }
+    return RegistrationRequestOut(**reg_dict)

@@ -1,14 +1,21 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from typing import AsyncGenerator
+from app.core.config import settings
 import os
 
 # DATABASE_URL format (asyncpg):
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:1234@localhost:5432/schedule_db")
+# Use settings from config.py which reads from DATABASE_URL environment variable
+DATABASE_URL = settings.database_url
+
+# Enable SQL echo in development (controlled by DB_ECHO env var)
+DB_ECHO = os.getenv("DB_ECHO", "false").lower() in ("true", "1", "yes")
 
 engine = create_async_engine(
     DATABASE_URL,
-    echo=True,  # True when debugging
+    echo=DB_ECHO,
     pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20,
 )
 
 async_session_maker = async_sessionmaker(
