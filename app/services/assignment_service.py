@@ -74,3 +74,24 @@ class AssignmentService:
         
         logger.info(f"Знайдено призначень: {len(assignments)}")
         return assignments
+
+    async def get_student_schedule(
+            self, group_id: UUID, schedule_id: Optional[UUID] = None
+    ) -> List[Assignment]:
+        """
+        Gets all assignments for a specific student's group.
+        If schedule_id is provided, returns assignments for that schedule only.
+        Otherwise, returns all assignments for the group across all schedules.
+        """
+        if schedule_id:
+            logger.info(f"Отримання розкладу групи {group_id} для розкладу {schedule_id}")
+            assignments = await self.repo.find_by_schedule_and_group(
+                schedule_id=schedule_id,
+                group_id=group_id
+            )
+        else:
+            logger.info(f"Отримання всіх розкладів групи {group_id}")
+            assignments = await self.repo.find_by_group_id(group_id)
+        
+        logger.info(f"Знайдено призначень: {len(assignments)}")
+        return assignments

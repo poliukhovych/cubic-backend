@@ -3,7 +3,7 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from app.api import health, groups, teachers, courses, auth, users
+from app.api import health, groups, teachers, courses, auth, users, students
 from app.db.models.base import Base
 from app.db.session import engine
 from app.middleware import LoggingMiddleware, ErrorHandlingMiddleware
@@ -79,6 +79,7 @@ app.include_router(admin_people.router, prefix="/api", tags=["admin-people"])
 app.include_router(teachers.router, prefix="/api/teachers", tags=["teachers"])
 app.include_router(groups.router, prefix="/api/groups", tags=["groups"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
+app.include_router(students.router, prefix="/api/students", tags=["students"])
 app.include_router(schedules.router, prefix="/api", tags=["schedules"])
 app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
 
