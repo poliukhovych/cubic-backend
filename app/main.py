@@ -3,7 +3,7 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from app.api import health, groups, teachers, courses, auth, users, students
+from app.api import health, groups, teachers, courses, auth, users, students, rooms, timeslots
 from app.db.models.base import Base
 from app.db.session import engine
 from app.middleware import LoggingMiddleware, ErrorHandlingMiddleware
@@ -82,6 +82,8 @@ app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(students.router, prefix="/api/students", tags=["students"])
 app.include_router(schedules.router, prefix="/api", tags=["schedules"])
 app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
+app.include_router(rooms.router, prefix="/api/rooms", tags=["rooms"])
+app.include_router(timeslots.router, prefix="/api/timeslots", tags=["timeslots"])
 
 # Simple test endpoint to demo custom exceptions
 from fastapi import HTTPException

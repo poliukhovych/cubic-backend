@@ -13,6 +13,7 @@ from app.repositories.course_repository import CourseRepository
 from app.repositories.schedule_repository import ScheduleRepository
 from app.repositories.assignment_repository import AssignmentRepository
 from app.repositories.timeslot_repository import TimeslotRepository
+from app.repositories.lesson_repository import LessonRepository
 from app.repositories.availability_repository import AvailabilityRepository
 from app.repositories.constraint_repository import ConstraintRepository
 from app.repositories.students_repository import StudentRepository
@@ -89,6 +90,11 @@ def get_timeslot_repository(
 ) -> TimeslotRepository:
     return TimeslotRepository(session)
 
+def get_lesson_repository(
+    session: AsyncSession = Depends(get_session)
+) -> LessonRepository:
+    return LessonRepository(session)
+
 def get_availability_repository(
     session: AsyncSession = Depends(get_session)
 ) -> AvailabilityRepository:
@@ -138,9 +144,10 @@ def get_assignment_service(
     return AssignmentService(repo)
 
 def get_timeslot_service(
-    repo: TimeslotRepository = Depends(get_timeslot_repository)
+    repo: TimeslotRepository = Depends(get_timeslot_repository),
+    lesson_repo: LessonRepository = Depends(get_lesson_repository)
 ) -> TimeslotService:
-    return TimeslotService(repo)
+    return TimeslotService(repo, lesson_repo)
 
 # Renamed: This is the simple CRUD for the 'schedules' table
 def get_schedule_service(
