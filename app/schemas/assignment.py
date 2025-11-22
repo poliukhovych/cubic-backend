@@ -28,5 +28,6 @@ class AssignmentCreate(MicroserviceAssignment):
 class AssignmentResponse(AssignmentCreate):
     """Schema for returning a full assignment from the API."""
     assignment_id: uuid.UUID = Field(..., alias="assignmentId", description="Assignment ID")
+    room_name: Optional[str] = Field(None, alias="roomName", description="Room name (for convenience, matches roomId)")
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)

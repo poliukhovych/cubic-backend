@@ -391,6 +391,13 @@ class ScheduleGenerationService:
         
         timeslot_map = await self.timeslot_service.get_string_to_id_map()
         
+        # Отримуємо список реальних кімнат з БД для валідації roomId
+        rooms_resp = await self.room_service.get_all_rooms()
+        valid_room_ids = {room.room_id for room in rooms_resp.rooms}
+        logger.info(f"Отримано {len(valid_room_ids)} реальних кімнат з БД для валідації roomId")
+        if valid_room_ids:
+            logger.debug(f"Приклади реальних room_id: {list(valid_room_ids)[:3]}")
+        
         converted = []
         
         for assignment in assignments_data:
@@ -426,6 +433,15 @@ class ScheduleGenerationService:
             if room_id_str:
                 try:
                     room_id_uuid = UUIDType(room_id_str)
+                    # Перевіряємо, чи roomId відповідає реальній кімнаті з БД
+                    if room_id_uuid not in valid_room_ids:
+                        logger.warning(
+                            f"roomId {room_id_uuid} з мікросервісу не відповідає жодній реальній кімнаті з БД. "
+                            f"Встановлюємо roomId = None. Доступні кімнати: {len(valid_room_ids)}"
+                        )
+                        room_id_uuid = None
+                    else:
+                        logger.debug(f"roomId {room_id_uuid} валідний - знайдено в БД")
                 except ValueError:
                     logger.warning(f"Невірний формат roomId: {room_id_str}, встановлюємо None")
                     room_id_uuid = None
@@ -642,7 +658,26 @@ class ScheduleGenerationService:
                         logger.info(f"   - Статус: {status}")
                         logger.info("=" * 80 + "\n")
                         
-                        return saved_assignments
+                        # Формуємо відповідь з roomName для зручності фронтенду
+                        # Отримуємо кімнати для мапінгу room_id -> room_name
+                        rooms_resp = await self.room_service.get_all_rooms()
+                        room_id_to_name = {room.room_id: room.name for room in rooms_resp.rooms}
+                        logger.debug(f"Створено мапінг кімнат: {len(room_id_to_name)} кімнат")
+                        
+                        # Конвертуємо Assignment моделі в AssignmentResponse з roomName
+                        assignment_responses = []
+                        for assignment in saved_assignments:
+                            # Створюємо базовий response
+                            assignment_response = AssignmentResponse.model_validate(assignment)
+                            # Додаємо roomName якщо room_id існує
+                            if assignment.room_id and assignment.room_id in room_id_to_name:
+                                assignment_response.room_name = room_id_to_name[assignment.room_id]
+                            else:
+                                assignment_response.room_name = None
+                            assignment_responses.append(assignment_response)
+                        
+                        logger.info(f"Сформовано {len(assignment_responses)} відповідей з roomName")
+                        return assignment_responses
 
                     elif result_response.status_code == 500:
                         error_details = result_response.json().get("detail", "Unknown error")
