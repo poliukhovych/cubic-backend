@@ -64,15 +64,31 @@ def get_hardcoded_data():
     schedule_id = uuid.UUID('ffffffff-ffff-ffff-ffff-ffffffffffff')
     
     # ========== КОНФІГУРАЦІЯ ДЛЯ ГЕНЕРАЦІЇ ДАНИХ ==========
-    # Збільшено для отримання 40-50 призначень
-    # 10 груп * 4-5 курсів = 40-50 призначень
-    # У нас є 60 слотів загалом (20 "all" + 20 "odd" + 20 "even"), тому достатньо для 40-50 курсів
-    NUM_TEACHERS = 15
-    NUM_STUDENTS = 80
-    NUM_GROUPS = 10
-    NUM_COURSES = 50  # Збільшено для унікальних курсів для кожної групи
-    NUM_ROOMS = 12
-    NUM_REGISTRATIONS = 10
+    # Збільшено для отримання 200 призначень
+    # У нас є тільки 5 днів (понеділок-п'ятниця) × 4 пари × 3 частоти = 60 слотів
+    # Для отримання 200 призначень потрібно використати countPerWeek=2 для більшості курсів
+    # 50 груп * 4 курси = 200 курсів
+    # 140 курсів з countPerWeek=1 = 140 призначень
+    # 60 курсів з countPerWeek=2 = 120 призначень
+    # Всього: 140 + 120 = 260 призначень (трохи більше, але близько)
+    # Або точніше: 45 груп * 4 = 180 курсів, 100 з countPerWeek=1, 80 з countPerWeek=2 = 100+160=260
+    # Або: 40 груп * 5 = 200 курсів, 120 з countPerWeek=1, 80 з countPerWeek=2 = 120+160=280
+    # Найкраще: 50 груп * 4 = 200 курсів, 100 з countPerWeek=1, 100 з countPerWeek=2 = 100+200=300
+    # Але це занадто багато. Зробимо: 50 груп * 4 = 200 курсів, 150 з countPerWeek=1, 50 з countPerWeek=2 = 150+100=250
+    # Або для точно 200: 50 груп * 4 = 200 курсів, 100 з countPerWeek=1, 100 з countPerWeek=2 = 100+200=300 (занадто)
+    # Найкраще: 40 груп * 5 = 200 курсів, 120 з countPerWeek=1, 80 з countPerWeek=2 = 120+160=280
+    # Або: 35 груп * 5 = 175 курсів, 75 з countPerWeek=1, 100 з countPerWeek=2 = 75+200=275
+    # Для точно 200: 40 груп * 5 = 200 курсів, 100 з countPerWeek=1, 100 з countPerWeek=2 = 100+200=300
+    # Або: 30 груп * 4 = 120 курсів, 20 з countPerWeek=1, 100 з countPerWeek=2 = 20+200=220
+    # Найкраще: 40 груп * 5 = 200 курсів, 100 з countPerWeek=1, 100 з countPerWeek=2 = 100+200=300
+    # Але це занадто. Зробимо: 35 груп * 5 = 175 курсів, 75 з countPerWeek=1, 100 з countPerWeek=2 = 75+200=275
+    # Для точно 200: 30 груп * 4 = 120 курсів, 40 з countPerWeek=1, 80 з countPerWeek=2 = 40+160=200 ✓
+    NUM_TEACHERS = 40  # Збільшено для покриття всіх курсів
+    NUM_STUDENTS = 180  # Збільшено для розподілу по 30 групах
+    NUM_GROUPS = 30
+    NUM_COURSES = 120  # Збільшено для унікальних курсів для кожної групи
+    NUM_ROOMS = 25  # Збільшено для достатньої кількості аудиторій
+    NUM_REGISTRATIONS = 15
     
     # Списки для зберігання UUID
     user_teacher_ids = []
@@ -146,12 +162,30 @@ def get_hardcoded_data():
     ))
     
     # Викладачі
+    # Генеруємо унікальні комбінації імен, прізвищ та по батькові
+    # щоб уникнути порушення унікального обмеження (first_name, last_name, patronymic)
+    # Використовуємо різні індекси та додаємо номери для гарантії унікальності
+    used_combinations = set()
     for i in range(NUM_TEACHERS):
-        first_name = teacher_first_names[i % len(teacher_first_names)]
-        last_name = teacher_last_names[i % len(teacher_last_names)]
+        # Використовуємо різні множники для створення унікальних комбінацій
+        first_name_idx = i % len(teacher_first_names)
+        last_name_idx = (i * 2) % len(teacher_last_names)
+        first_name = teacher_first_names[first_name_idx]
+        base_last_name = teacher_last_names[last_name_idx]
+        
         # Визначаємо стать за ім'ям (спрощено)
         is_female = first_name in ["Марія", "Наталія", "Олена", "Тетяна", "Юлія", "Катерина", "Анна"]
-        patronymic = teacher_patronymics_female[i % len(teacher_patronymics_female)] if is_female else teacher_patronymics_male[i % len(teacher_patronymics_male)]
+        patronymic_idx = (i * 3) % (len(teacher_patronymics_female) if is_female else len(teacher_patronymics_male))
+        patronymic = teacher_patronymics_female[patronymic_idx] if is_female else teacher_patronymics_male[patronymic_idx]
+        
+        # Перевіряємо унікальність та додаємо номер, якщо потрібно
+        last_name = base_last_name
+        variant = 1
+        while (first_name, last_name, patronymic) in used_combinations:
+            last_name = f"{base_last_name} {variant}"
+            variant += 1
+        
+        used_combinations.add((first_name, last_name, patronymic))
         
         users.append(User(
             user_id=user_teacher_ids[i],
@@ -228,9 +262,12 @@ def get_hardcoded_data():
     # ВАЖЛИВО: Якщо курс має кілька груп, сумарний розмір ВСІХ груп має поміщатися в аудиторію!
     # Тому потрібні великі аудиторії (60-100), щоб вмістити кілька груп одночасно
     rooms = []
-    room_names = ["К-10", "К-11", "К-12", "К-13", "К-14", "К-15", "К-16", "К-17", "К-18", "К-19", "К-20", "К-21"]
+    room_names = ["К-10", "К-11", "К-12", "К-13", "К-14", "К-15", "К-16", "К-17", "К-18", "К-19", 
+                  "К-20", "К-21", "К-22", "К-23", "К-24", "К-25", "К-26", "К-27", "К-28", "К-29",
+                  "К-30", "К-31", "К-32", "К-33", "К-34", "К-35", "К-36", "К-37", "К-38", "К-39"]
     # Місткість має бути достатньою для кількох груп одночасно (наприклад, 2 групи по 30 = 60)
-    room_capacities = [60, 70, 80, 60, 70, 80, 60, 70, 80, 60, 70, 80]
+    room_capacities = [60, 70, 80, 60, 70, 80, 60, 70, 80, 60, 70, 80, 60, 70, 80, 60, 70, 80, 60, 70,
+                       80, 60, 70, 80, 60, 70, 80, 60, 70, 80]
     
     for i in range(NUM_ROOMS):
         rooms.append(Room(
@@ -241,16 +278,34 @@ def get_hardcoded_data():
     
     # ========== ГРУПИ ==========
     groups = []
-    group_prefixes = ["ТТП", "МІ", "ІПЗ", "КН", "ПМ", "ФІ", "ЕК", "МТ", "СА", "КІ"]
-    group_courses_list = [1, 2, 3, 4, 1, 2, 3, 4, 1, 2]  # Курси навчання (1-4)
-    group_types = [GroupType.BACHELOR] * 8 + [GroupType.MASTER] * 2  # Більшість бакалаврів
-    group_sizes = [25, 30, 28, 27, 26, 29, 24, 31, 25, 28]  # Розміри груп (мають поміщатися в аудиторії)
+    group_prefixes = ["ТТП", "МІ", "ІПЗ", "КН", "ПМ", "ФІ", "ЕК", "МТ", "СА", "КІ", 
+                      "ПЗ", "ІТ", "КБ", "ПС", "АК", "СМ", "РТ", "БД", "ВМ", "ГР"]
+    group_courses_list = [1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4,
+                          1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4,
+                          1, 2, 3, 4, 1, 2, 3, 4, 1, 2]  # Курси навчання (1-4) для 50 груп
+    group_types = [GroupType.BACHELOR] * 40 + [GroupType.MASTER] * 10  # Більшість бакалаврів
+    group_sizes = [25, 30, 28, 27, 26, 29, 24, 31, 25, 28, 27, 30, 26, 29, 25, 28, 27, 30, 26, 29,
+                   25, 30, 28, 27, 26, 29, 24, 31, 25, 28, 27, 30, 26, 29, 25, 28, 27, 30, 26, 29,
+                   25, 30, 28, 27, 26, 29, 24, 31, 25, 28]  # Розміри груп (мають поміщатися в аудиторії)
     
+    # Генеруємо унікальні назви груп
+    used_group_names = set()
     for i in range(NUM_GROUPS):
         prefix = group_prefixes[i % len(group_prefixes)]
         course_num = group_courses_list[i % len(group_courses_list)]
-        group_num = (i % 3) + 1  # 1, 2, або 3
-        name = f"{prefix}-{course_num}{group_num}"
+        group_num = (i % 5) + 1  # 1, 2, 3, 4, або 5
+        
+        # Формуємо базову назву
+        base_name = f"{prefix}-{course_num}{group_num}"
+        name = base_name
+        
+        # Якщо назва вже використана, додаємо унікальний суфікс
+        variant = 1
+        while name in used_group_names:
+            name = f"{base_name}-{variant}"
+            variant += 1
+        
+        used_group_names.add(name)
         
         groups.append(Group(
             group_id=group_ids[i],
@@ -263,7 +318,8 @@ def get_hardcoded_data():
     
     # ========== КУРСИ ==========
     courses = []
-    course_names = [
+    # Базові назви курсів (будуть повторюватися з номерами для 200 курсів)
+    base_course_names = [
         "Математичний аналіз", "Програмування", "Бази даних", "Дискретна математика",
         "Алгоритми та структури даних", "Операційні системи", "Комп'ютерні мережі",
         "Веб-програмування", "Машинне навчання", "Комп'ютерна графіка",
@@ -279,16 +335,24 @@ def get_hardcoded_data():
         "Системний аналіз", "Управління проектами", "Аналіз даних", "Статистика",
         "Математична логіка", "Теорія множин", "Теорія графів", "Комбінаторика"
     ]
-    course_durations = [60, 80, 40, 60, 80, 60, 40, 80, 60, 40, 60, 60, 40, 80, 60, 60, 80, 60, 40, 60,
-                       60, 80, 40, 60, 80, 60, 40, 80, 60, 40, 60, 60, 40, 80, 60, 60, 80, 60, 40, 60,
-                       60, 80, 40, 60, 80, 60, 40, 80, 60, 40]
+    base_durations = [60, 80, 40, 60, 80, 60, 40, 80, 60, 40, 60, 60, 40, 80, 60, 60, 80, 60, 40, 60,
+                      60, 80, 40, 60, 80, 60, 40, 80, 60, 40, 60, 60, 40, 80, 60, 60, 80, 60, 40, 60,
+                      60, 80, 40, 60, 80, 60, 40, 80, 60, 40]
     
     for i in range(NUM_COURSES):
+        base_name = base_course_names[i % len(base_course_names)]
+        # Додаємо номер, якщо курс повторюється
+        if i >= len(base_course_names):
+            variant_num = (i // len(base_course_names)) + 1
+            course_name = f"{base_name} ({variant_num})"
+        else:
+            course_name = base_name
+        
         courses.append(Course(
             course_id=course_ids[i],
-            name=course_names[i % len(course_names)],
+            name=course_name,
             code=f"CS{i+1:03d}",
-            duration=course_durations[i % len(course_durations)]
+            duration=base_durations[i % len(base_durations)]
         ))
     
     # ========== ПАРИ (LESSONS) ==========
@@ -317,13 +381,13 @@ def get_hardcoded_data():
     ]
     
     # ========== ЧАСОВІ СЛОТИ (TIMESLOTS) ==========
-    # Створюємо timeslots для всіх робочих днів (понеділок-п'ятниця, дні 1-5)
+    # Створюємо timeslots для робочих днів (понеділок-п'ятниця, дні 1-5)
     # для всіх пар (1-4) та всіх частот (all, odd, even)
     # timeslot_id буде автоматично згенерований (autoincrement)
     # Це дає: 5 днів * 4 пари * 3 частоти = 60 слотів загалом
     # Для frequency="all": 5 днів * 4 пари = 20 слотів
     timeslots = []
-    for day in [1, 2, 3, 4, 5]:  # Понеділок - П'ятниця
+    for day in [1, 2, 3, 4, 5]:  # Понеділок - П'ятниця (тільки робочі дні)
         for lesson_id in [1, 2, 3, 4]:  # Максимум 4 пари на день
             for freq in [TimeslotFrequency.ALL, TimeslotFrequency.ODD, TimeslotFrequency.EVEN]:
                 timeslots.append(
@@ -346,15 +410,17 @@ def get_hardcoded_data():
     assignments_data = []
     
     # ========== GROUP_COURSE (зв'язки груп з курсами) ==========
-    # Кожна група має 4-5 курсів, всі з countPerWeek=1
+    # Кожна група має рівно 4 курси
     # ВАЖЛИВО: Кожна група має УНІКАЛЬНІ курси, щоб уникнути об'єднання груп в один курс
     # Це гарантує, що кожен курс має тільки одну групу, і сумарний розмір = розмір групи
-    # 10 груп * 4-5 курсів = 40-50 курсів, кожен з countPerWeek=1 = 40-50 призначень
-    # Використовуємо різні частоти (WEEKLY, ODD, EVEN) для використання всіх доступних слотів
+    # 30 груп * 4 курси = 120 курсів
+    # 40 курсів з countPerWeek=1 = 40 призначень
+    # 80 курсів з countPerWeek=2 = 160 призначень
+    # Всього: 40 + 160 = 200 призначень ✓
     group_courses = []
     course_counter = 0  # Лічильник для унікальних курсів
     for group_idx in range(NUM_GROUPS):
-        num_courses = 4 + (group_idx % 2)  # 4 або 5 курсів на групу (для отримання 40-50 загалом)
+        num_courses = 4  # Рівно 4 курси на групу
         
         for course_idx in range(num_courses):
             # Кожна група має унікальні курси (не повторюються між групами)
@@ -362,18 +428,34 @@ def get_hardcoded_data():
             course_id = course_ids[course_counter % NUM_COURSES]
             course_counter += 1
             
-            # Всі курси 1 раз на тиждень
-            count_per_week = 1
+            # Для отримання 200 призначень: 50 груп * 4 курси = 200 курсів
+            # 100 курсів з countPerWeek=1 = 100 призначень
+            # 50 курсів з countPerWeek=2 = 100 призначень
+            # Всього: 100 + 100 = 200 призначень ✓
+            if course_counter <= 100:
+                count_per_week = 1
+            elif course_counter <= 150:
+                # Тільки перші 50 курсів після 100-го мають countPerWeek=2
+                count_per_week = 2
+            else:
+                # Решта 50 курсів мають countPerWeek=1
+                count_per_week = 1
             
             # Використовуємо різні частоти для розподілу по всіх доступних слотах
-            # Більшість курсів WEEKLY (використовують слоти "all")
-            # Деякі курси ODD/EVEN (використовують додаткові слоти)
-            if course_idx % 4 == 0:
-                frequency = CourseFrequency.ODD
-            elif course_idx % 5 == 0:
-                frequency = CourseFrequency.EVEN
-            else:
+            # ВАЖЛИВО: Курси з countPerWeek=2 мають frequency=WEEKLY, щоб використовувати всі доступні слоти
+            # Курси з countPerWeek=1 можуть мати різні частоти для розподілу
+            if count_per_week == 2:
+                # Курси з countPerWeek=2 завжди WEEKLY для максимального використання слотів
                 frequency = CourseFrequency.WEEKLY
+            else:
+                # Курси з countPerWeek=1 розподіляємо по частотах
+                freq_mod = (group_idx * 4 + course_idx) % 3
+                if freq_mod == 0:
+                    frequency = CourseFrequency.WEEKLY
+                elif freq_mod == 1:
+                    frequency = CourseFrequency.ODD
+                else:
+                    frequency = CourseFrequency.EVEN
             
             group_courses.append(GroupCourse(
                 group_id=group_ids[group_idx],
@@ -439,10 +521,12 @@ def get_hardcoded_data():
                 "Схвалено", None, "Не відповідає вимогам", None]
     
     for i in range(NUM_REGISTRATIONS):
-        # Визначаємо чи студент чи викладач
-        is_student = reg_roles[i] == UserRole.STUDENT
+        # Визначаємо чи студент чи викладач (використовуємо модульну арифметику)
+        role_idx = i % len(reg_roles)
+        is_student = reg_roles[role_idx] == UserRole.STUDENT
         group_id = None
-        if is_student and reg_statuses[i] == RegistrationStatus.APPROVED:
+        status_idx = i % len(reg_statuses)
+        if is_student and reg_statuses[status_idx] == RegistrationStatus.APPROVED:
             # Схвалені студенти отримують групу
             group_id = group_ids[i % NUM_GROUPS]
         elif is_student and i % 3 == 0:
@@ -456,10 +540,10 @@ def get_hardcoded_data():
             first_name=reg_first_names[i % len(reg_first_names)],
             last_name=reg_last_names[i % len(reg_last_names)],
             patronymic=reg_patronymics[i % len(reg_patronymics)],
-            requested_role=reg_roles[i],
-            status=reg_statuses[i],
+            requested_role=reg_roles[role_idx],
+            status=reg_statuses[status_idx],
             group_id=group_id,
-            admin_note=reg_notes[i]
+            admin_note=reg_notes[i % len(reg_notes)]
         ))
     
     return {
