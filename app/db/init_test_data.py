@@ -393,13 +393,13 @@ async def _create_lessons(session: AsyncSession):
     lessons = [
         Lesson(
             lesson_id=1,
-            start_time=time(8, 30),
-            end_time=time(10, 5)
+            start_time=time(8, 40),
+            end_time=time(10, 15)
         ),
         Lesson(
             lesson_id=2,
-            start_time=time(10, 25),
-            end_time=time(12, 0)
+            start_time=time(10, 35),
+            end_time=time(12, 10)
         ),
         Lesson(
             lesson_id=3,

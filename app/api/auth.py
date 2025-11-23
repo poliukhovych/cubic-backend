@@ -24,6 +24,9 @@ from app.schemas.auth import (
 )
 from app.core.security import create_access_token, get_current_user
 from app.core.config import settings
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/auth")
 
@@ -469,13 +472,26 @@ async def register_with_google(
             detail="Role mismatch between path and request body"
         )
     
+    # Check if OAuth credentials are configured
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="GOOGLE_CLIENT_ID is not configured on the server"
+        )
+    
+    if not settings.GOOGLE_CLIENT_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="GOOGLE_CLIENT_SECRET is not configured on the server. OAuth code flow requires client secret."
+        )
+    
     # Exchange authorization code for tokens
     token_endpoint = "https://oauth2.googleapis.com/token"
     
     token_data = {
         "code": register_request.code,
         "client_id": settings.GOOGLE_CLIENT_ID,
-        "client_secret": settings.GOOGLE_CLIENT_SECRET or "",
+        "client_secret": settings.GOOGLE_CLIENT_SECRET,
         "redirect_uri": register_request.redirect_uri,
         "grant_type": "authorization_code"
     }
@@ -493,10 +509,78 @@ async def register_with_google(
             raise ValueError("No id_token in response")
         
     except http_requests.exceptions.HTTPError as e:
-        error_detail = e.response.text if hasattr(e, 'response') else str(e)
+        error_detail = ""
+        status_code = None
+        try:
+            if hasattr(e, 'response') and e.response is not None:
+                status_code = e.response.status_code
+                error_detail = e.response.text or ""
+                
+                # Log the full error response for debugging
+                # Extract full response text for detailed logging
+                full_response_text = error_detail
+                
+                logger.error(
+                    f"Google OAuth token exchange failed (register)",
+                    extra={
+                        "status_code": status_code,
+                        "response_text": full_response_text,
+                        "url": token_endpoint,
+                        "client_id_set": bool(settings.GOOGLE_CLIENT_ID),
+                        "client_secret_set": bool(settings.GOOGLE_CLIENT_SECRET),
+                        "client_id_preview": settings.GOOGLE_CLIENT_ID[:20] + "..." if settings.GOOGLE_CLIENT_ID and len(settings.GOOGLE_CLIENT_ID) > 20 else settings.GOOGLE_CLIENT_ID,
+                        "redirect_uri": register_request.redirect_uri,
+                    }
+                )
+                
+                # Try to parse JSON error response
+                try:
+                    error_json = e.response.json()
+                    error_code = error_json.get('error', '')
+                    error_description = error_json.get('error_description', '')
+                    
+                    if error_code or error_description:
+                        error_detail = f"{error_code}: {error_description}".strip(": ")
+                        
+                        # Provide specific guidance based on error type
+                        if error_code == 'invalid_client':
+                            error_detail = (
+                                f"OAuth client not found (invalid_client). "
+                                f"This usually means:\n"
+                                f"1. GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is incorrect\n"
+                                f"2. CLIENT_ID and CLIENT_SECRET don't belong to the same OAuth client\n"
+                                f"3. The OAuth client was deleted in Google Cloud Console\n\n"
+                                f"Server has client_id set: {bool(settings.GOOGLE_CLIENT_ID)}, "
+                                f"client_secret set: {bool(settings.GOOGLE_CLIENT_SECRET)}\n"
+                                f"CLIENT_ID preview: {settings.GOOGLE_CLIENT_ID[:30] + '...' if settings.GOOGLE_CLIENT_ID and len(settings.GOOGLE_CLIENT_ID) > 30 else settings.GOOGLE_CLIENT_ID}\n"
+                                f"Please verify in Google Cloud Console that these credentials match."
+                            )
+                        elif error_code == 'invalid_grant':
+                            error_detail = f"Invalid authorization code. The code may have expired or already been used. Original error: {error_description}"
+                        elif error_code == 'redirect_uri_mismatch':
+                            error_detail = f"Redirect URI mismatch. Make sure '{register_request.redirect_uri}' is added to Authorized redirect URIs in Google Cloud Console. Original error: {error_description}"
+                        else:
+                            # Include full response for unknown errors
+                            error_detail = f"{error_code}: {error_description}\nFull response: {full_response_text}"
+                except (ValueError, AttributeError) as parse_err:
+                    # If JSON parsing fails, use the text response
+                    logger.error(f"Failed to parse error response as JSON: {parse_err}, raw response: {full_response_text}")
+                    if not error_detail:
+                        error_detail = f"Unknown error from Google OAuth API. Raw response: {full_response_text}"
+        except Exception as parse_error:
+            logger.error(f"Error parsing OAuth error response: {parse_error}")
+            error_detail = str(e) if not error_detail else error_detail
+        
+        # Provide more helpful error messages
+        if status_code == 401:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"OAuth authentication failed. {error_detail}"
+            )
+        
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to exchange authorization code: {e.response.status_code} - {error_detail}"
+            detail=f"Failed to exchange authorization code: {status_code or 'unknown'} - {error_detail}"
         )
     except Exception as e:
         raise HTTPException(
@@ -580,13 +664,26 @@ async def login_with_google(
     
     import requests as http_requests
     
+    # Check if OAuth credentials are configured
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="GOOGLE_CLIENT_ID is not configured on the server"
+        )
+    
+    if not settings.GOOGLE_CLIENT_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="GOOGLE_CLIENT_SECRET is not configured on the server. OAuth code flow requires client secret."
+        )
+    
     # Exchange authorization code for tokens
     token_endpoint = "https://oauth2.googleapis.com/token"
     
     token_data = {
         "code": login_request.code,
         "client_id": settings.GOOGLE_CLIENT_ID,
-        "client_secret": settings.GOOGLE_CLIENT_SECRET or "",
+        "client_secret": settings.GOOGLE_CLIENT_SECRET,
         "redirect_uri": login_request.redirect_uri,
         "grant_type": "authorization_code"
     }
@@ -601,10 +698,77 @@ async def login_with_google(
             raise ValueError("No id_token in response")
         
     except http_requests.exceptions.HTTPError as e:
-        error_detail = e.response.text if hasattr(e, 'response') else str(e)
+        error_detail = ""
+        status_code = None
+        try:
+            if hasattr(e, 'response') and e.response is not None:
+                status_code = e.response.status_code
+                error_detail = e.response.text or ""
+                
+                # Log the full error response for debugging
+                full_response_text = error_detail
+                
+                logger.error(
+                    f"Google OAuth token exchange failed (login)",
+                    extra={
+                        "status_code": status_code,
+                        "response_text": full_response_text,
+                        "url": token_endpoint,
+                        "client_id_set": bool(settings.GOOGLE_CLIENT_ID),
+                        "client_secret_set": bool(settings.GOOGLE_CLIENT_SECRET),
+                        "client_id_preview": settings.GOOGLE_CLIENT_ID[:20] + "..." if settings.GOOGLE_CLIENT_ID and len(settings.GOOGLE_CLIENT_ID) > 20 else settings.GOOGLE_CLIENT_ID,
+                        "redirect_uri": login_request.redirect_uri,
+                    }
+                )
+                
+                # Try to parse JSON error response
+                try:
+                    error_json = e.response.json()
+                    error_code = error_json.get('error', '')
+                    error_description = error_json.get('error_description', '')
+                    
+                    if error_code or error_description:
+                        error_detail = f"{error_code}: {error_description}".strip(": ")
+                        
+                        # Provide specific guidance based on error type
+                        if error_code == 'invalid_client':
+                            error_detail = (
+                                f"OAuth client not found (invalid_client). "
+                                f"This usually means:\n"
+                                f"1. GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is incorrect\n"
+                                f"2. CLIENT_ID and CLIENT_SECRET don't belong to the same OAuth client\n"
+                                f"3. The OAuth client was deleted in Google Cloud Console\n\n"
+                                f"Server has client_id set: {bool(settings.GOOGLE_CLIENT_ID)}, "
+                                f"client_secret set: {bool(settings.GOOGLE_CLIENT_SECRET)}\n"
+                                f"CLIENT_ID preview: {settings.GOOGLE_CLIENT_ID[:30] + '...' if settings.GOOGLE_CLIENT_ID and len(settings.GOOGLE_CLIENT_ID) > 30 else settings.GOOGLE_CLIENT_ID}\n"
+                                f"Please verify in Google Cloud Console that these credentials match."
+                            )
+                        elif error_code == 'invalid_grant':
+                            error_detail = f"Invalid authorization code. The code may have expired or already been used. Original error: {error_description}"
+                        elif error_code == 'redirect_uri_mismatch':
+                            error_detail = f"Redirect URI mismatch. Make sure '{login_request.redirect_uri}' is added to Authorized redirect URIs in Google Cloud Console. Original error: {error_description}"
+                        else:
+                            # Include full response for unknown errors
+                            error_detail = f"{error_code}: {error_description}\nFull response: {full_response_text}"
+                except (ValueError, AttributeError) as parse_err:
+                    # If JSON parsing fails, use the text response
+                    logger.error(f"Failed to parse error response as JSON: {parse_err}, raw response: {full_response_text}")
+                    if not error_detail:
+                        error_detail = f"Unknown error from Google OAuth API. Raw response: {full_response_text}"
+        except Exception as parse_error:
+            logger.error(f"Error parsing OAuth error response: {parse_error}")
+            error_detail = str(e) if not error_detail else error_detail
+        
+        # Provide more helpful error messages
+        if status_code == 401:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"OAuth authentication failed. {error_detail}"
+            )
+        
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to exchange authorization code: {e.response.status_code} - {error_detail}"
+            detail=f"Failed to exchange authorization code: {status_code or 'unknown'} - {error_detail}"
         )
     except Exception as e:
         raise HTTPException(
