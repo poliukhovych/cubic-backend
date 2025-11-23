@@ -13,9 +13,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db.models import (
     User, UserRole,
     Teacher, Student, Admin, Room, Group, Course, Lesson, Timeslot, Schedule, Assignment,
-    GroupCourse, TeacherCourse, RegistrationRequest, RegistrationStatus
+    GroupCourse, TeacherCourse, StudentGroup, RegistrationRequest, RegistrationStatus
 )
 from app.db.models.common_enums import TimeslotFrequency, CourseFrequency, TeacherStatus, StudentStatus
+from app.db.models.catalog.group import GroupType
 from app.core.config import settings
 
 # Флаг для відстеження, чи вже виконується ініціалізація
@@ -53,134 +54,157 @@ def get_hardcoded_data():
     """
     Повертає всі хардкоджені дані для розкладу.
     Всі об'єкти визначені тут.
+    Розширені тестові дані для реалістичного розкладу.
     """
     
-    # ========== UUID для всіх об'єктів ==========
+    # ========== БАЗОВІ UUID ==========
     # User для адміністратора (використовуємо user_id з токену)
     user_admin_id = uuid.UUID('4a9465b5-14ca-4b10-b6e0-20ca83eb6790')
-    
-    # Users для викладачів
-    user_teacher1_id = uuid.UUID('00000000-0000-0000-0000-000000000011')
-    user_teacher2_id = uuid.UUID('00000000-0000-0000-0000-000000000012')
-    user_teacher3_id = uuid.UUID('00000000-0000-0000-0000-000000000013')
-    
-    # Users для студентів
-    user_student1_id = uuid.UUID('00000000-0000-0000-0000-000000000021')
-    user_student2_id = uuid.UUID('00000000-0000-0000-0000-000000000022')
-    user_student3_id = uuid.UUID('00000000-0000-0000-0000-000000000023')
-    
-    # Адміністратор
     admin_id = uuid.UUID('99999999-9999-9999-9999-999999999999')
-    
-    # Викладачі
-    teacher1_id = uuid.UUID('11111111-1111-1111-1111-111111111111')
-    teacher2_id = uuid.UUID('22222222-2222-2222-2222-222222222222')
-    teacher3_id = uuid.UUID('33333333-3333-3333-3333-333333333333')
-    
-    # Студенти
-    student1_id = uuid.UUID('20000000-0000-0000-0000-000000000001')
-    student2_id = uuid.UUID('20000000-0000-0000-0000-000000000002')
-    student3_id = uuid.UUID('20000000-0000-0000-0000-000000000003')
-    
-    # Аудиторії
-    room1_id = uuid.UUID('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')
-    room2_id = uuid.UUID('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb')
-    room3_id = uuid.UUID('cccccccc-cccc-cccc-cccc-cccccccccccc')
-    
-    # Групи
-    group1_id = uuid.UUID('11111111-0000-0000-0000-000000000001')
-    group2_id = uuid.UUID('11111111-0000-0000-0000-000000000002')
-    group3_id = uuid.UUID('11111111-0000-0000-0000-000000000003')
-    group4_id = uuid.UUID('11111111-0000-0000-0000-000000000004')
-    
-    # Курси
-    course1_id = uuid.UUID('cccccccc-0000-0000-0000-000000000001')
-    course2_id = uuid.UUID('cccccccc-0000-0000-0000-000000000002')
-    course3_id = uuid.UUID('cccccccc-0000-0000-0000-000000000003')
-    
-    # Розклад
     schedule_id = uuid.UUID('ffffffff-ffff-ffff-ffff-ffffffffffff')
     
-    # Заявки на реєстрацію
-    registration1_id = uuid.UUID('aaaaaaaa-0000-0000-0000-000000000001')
-    registration2_id = uuid.UUID('aaaaaaaa-0000-0000-0000-000000000002')
-    registration3_id = uuid.UUID('aaaaaaaa-0000-0000-0000-000000000003')
-    registration4_id = uuid.UUID('aaaaaaaa-0000-0000-0000-000000000004')
-    registration5_id = uuid.UUID('aaaaaaaa-0000-0000-0000-000000000005')
+    # ========== КОНФІГУРАЦІЯ ДЛЯ ГЕНЕРАЦІЇ ДАНИХ ==========
+    # Кожна група має 8 курсів (як у реальному навчальному плані)
+    # У нас є тільки 5 днів (понеділок-п'ятниця) × 4 пари × 3 частоти = 60 слотів
+    # 20 груп * 8 курсів = 160 курсів
+    # Кожна група: 6 курсів з countPerWeek=1 + 2 курси з countPerWeek=2
+    # 120 курсів з countPerWeek=1 = 120 призначень
+    # 40 курсів з countPerWeek=2 = 80 призначень
+    # Всього: 120 + 80 = 200 призначень
+    # Це забезпечить більше занять в день для кожної групи
+    # (середньо 10 призначень на групу на тиждень = 2 пари на день)
+    # (середньо 3.3 призначення на timeslot, що можливо з 25 аудиторіями)
+    NUM_TEACHERS = 35  # Для покриття всіх курсів (160 курсів)
+    NUM_STUDENTS = 120  # Для розподілу по 20 групах (6 студентів на групу)
+    NUM_GROUPS = 20  # Зменшено для реалістичного розкладу
+    NUM_COURSES = 160  # 20 груп * 8 курсів = 160 унікальних курсів
+    NUM_ROOMS = 25  # Достатньо для 20 груп
+    NUM_REGISTRATIONS = 15
+    
+    # Списки для зберігання UUID
+    user_teacher_ids = []
+    teacher_ids = []
+    user_student_ids = []
+    student_ids = []
+    group_ids = []
+    course_ids = []
+    room_ids = []
+    registration_ids = []
+    
+    # Генерація UUID для всіх об'єктів
+    for i in range(1, NUM_TEACHERS + 1):
+        user_teacher_ids.append(uuid.UUID(f'00000000-0000-0000-0000-{i:012x}'))
+        teacher_ids.append(uuid.UUID(f'11111111-1111-1111-1111-{i:012x}'))
+    
+    for i in range(1, NUM_STUDENTS + 1):
+        user_student_ids.append(uuid.UUID(f'00000000-0000-0000-0000-{200 + i:012x}'))
+        student_ids.append(uuid.UUID(f'20000000-0000-0000-0000-{i:012x}'))
+    
+    for i in range(1, NUM_GROUPS + 1):
+        group_ids.append(uuid.UUID(f'11111111-0000-0000-0000-{i:012x}'))
+    
+    for i in range(1, NUM_COURSES + 1):
+        course_ids.append(uuid.UUID(f'cccccccc-0000-0000-0000-{i:012x}'))
+    
+    for i in range(1, NUM_ROOMS + 1):
+        room_ids.append(uuid.UUID(f'aaaaaaaa-aaaa-aaaa-aaaa-{i:012x}'))
+    
+    for i in range(1, NUM_REGISTRATIONS + 1):
+        registration_ids.append(uuid.UUID(f'aaaaaaaa-0000-0000-0000-{i:012x}'))
     
     # ========== USERS (для адміністратора, викладачів та студентів) ==========
-    users = [
-        User(
-            user_id=user_admin_id,
-            google_sub="google_sub_admin_1",
-            email="admin@example.com",
-            first_name="Олександр",
-            last_name="Адміністратор",
-            patronymic="Петрович",
-            role=UserRole.ADMIN,
-            is_active=True
-        ),
-        User(
-            user_id=user_teacher1_id,
-            google_sub="google_sub_teacher_1",
-            email="teacher1@university.edu",
-            first_name="Іван",
-            last_name="Петренко",
-            patronymic="Олександрович",
+    # Списки українських імен для генерації
+    teacher_first_names = ["Іван", "Марія", "Олексій", "Наталія", "Андрій", "Олена", "Сергій", 
+                          "Тетяна", "Володимир", "Юлія", "Дмитро", "Катерина", "Олександр", "Анна", "Михайло"]
+    teacher_last_names = ["Петренко", "Коваленко", "Сидоренко", "Бондаренко", "Мельник", "Шевченко",
+                         "Ткаченко", "Морозенко", "Лисенко", "Романенко", "Іваненко", "Савченко",
+                         "Кравченко", "Олійник", "Гончаренко"]
+    teacher_patronymics_male = ["Олександрович", "Володимирович", "Михайлович", "Сергійович", "Андрійович",
+                               "Дмитрович", "Іванович", "Олегович", "Петрович", "Вікторович"]
+    teacher_patronymics_female = ["Олександрівна", "Володимирівна", "Михайлівна", "Сергіївна", "Андріївна",
+                                 "Дмитрівна", "Іванівна", "Олегівна", "Петрівна", "Вікторівна"]
+    
+    student_first_names = ["Дмитро", "Анна", "Олександр", "Марія", "Андрій", "Олена", "Сергій", "Тетяна",
+                          "Володимир", "Юлія", "Іван", "Катерина", "Михайло", "Наталія", "Олексій", "Вікторія",
+                          "Роман", "Оксана", "Василь", "Ірина", "Павло", "Світлана", "Богдан", "Людмила",
+                          "Максим", "Ольга", "Віталій", "Галина", "Юрій", "Надія", "Ігор", "Лариса",
+                          "Олег", "Тетяна", "Руслан", "Валентина", "Тарас", "Любов", "Станіслав", "Ніна"]
+    student_last_names = ["Іваненко", "Шевченко", "Мельник", "Петренко", "Коваленко", "Сидоренко",
+                         "Ткаченко", "Морозенко", "Лисенко", "Романенко", "Бондаренко", "Савченко",
+                         "Кравченко", "Олійник", "Гончаренко", "Бондар", "Коваль", "Шевчук", "Мельничук",
+                         "Ткачук", "Мороз", "Лисенко", "Романюк", "Іванюк", "Петрук", "Ковальчук"]
+    student_patronymics = ["Олегович", "Вікторівна", "Іванович", "Олександрович", "Дмитрович", "Сергійович",
+                          "Андрійович", "Володимирович", "Михайлович", "Петрович", "Олегівна", "Вікторівна",
+                          "Іванівна", "Олександрівна", "Дмитрівна", "Сергіївна", "Андріївна", "Володимирівна",
+                          "Михайлівна", "Петрівна"]
+    
+    users = []
+    
+    # Адміністратор
+    users.append(User(
+        user_id=user_admin_id,
+        google_sub="google_sub_admin_1",
+        email="admin@example.com",
+        first_name="Олександр",
+        last_name="Адміністратор",
+        patronymic="Петрович",
+        role=UserRole.ADMIN,
+        is_active=True
+    ))
+    
+    # Викладачі
+    # Генеруємо унікальні комбінації імен, прізвищ та по батькові
+    # щоб уникнути порушення унікального обмеження (first_name, last_name, patronymic)
+    # Використовуємо різні індекси та додаємо номери для гарантії унікальності
+    used_combinations = set()
+    for i in range(NUM_TEACHERS):
+        # Використовуємо різні множники для створення унікальних комбінацій
+        first_name_idx = i % len(teacher_first_names)
+        last_name_idx = (i * 2) % len(teacher_last_names)
+        first_name = teacher_first_names[first_name_idx]
+        base_last_name = teacher_last_names[last_name_idx]
+        
+        # Визначаємо стать за ім'ям (спрощено)
+        is_female = first_name in ["Марія", "Наталія", "Олена", "Тетяна", "Юлія", "Катерина", "Анна"]
+        patronymic_idx = (i * 3) % (len(teacher_patronymics_female) if is_female else len(teacher_patronymics_male))
+        patronymic = teacher_patronymics_female[patronymic_idx] if is_female else teacher_patronymics_male[patronymic_idx]
+        
+        # Перевіряємо унікальність та додаємо номер, якщо потрібно
+        last_name = base_last_name
+        variant = 1
+        while (first_name, last_name, patronymic) in used_combinations:
+            last_name = f"{base_last_name} {variant}"
+            variant += 1
+        
+        used_combinations.add((first_name, last_name, patronymic))
+        
+        users.append(User(
+            user_id=user_teacher_ids[i],
+            google_sub=f"google_sub_teacher_{i+1}",
+            email=f"teacher{i+1}@university.edu",
+            first_name=first_name,
+            last_name=last_name,
+            patronymic=patronymic,
             role=UserRole.TEACHER,
             is_active=True
-        ),
-        User(
-            user_id=user_teacher2_id,
-            google_sub="google_sub_teacher_2",
-            email="teacher2@university.edu",
-            first_name="Марія",
-            last_name="Коваленко",
-            patronymic="Володимирівна",
-            role=UserRole.TEACHER,
-            is_active=True
-        ),
-        User(
-            user_id=user_teacher3_id,
-            google_sub="google_sub_teacher_3",
-            email="teacher3@university.edu",
-            first_name="Олексій",
-            last_name="Сидоренко",
-            patronymic="Михайлович",
-            role=UserRole.TEACHER,
-            is_active=True
-        ),
-        User(
-            user_id=user_student1_id,
-            google_sub="google_sub_student_1",
-            email="student1@university.edu",
-            first_name="Дмитро",
-            last_name="Іваненко",
-            patronymic="Олегович",
+        ))
+    
+    # Студенти
+    for i in range(NUM_STUDENTS):
+        first_name = student_first_names[i % len(student_first_names)]
+        last_name = student_last_names[i % len(student_last_names)]
+        patronymic = student_patronymics[i % len(student_patronymics)]
+        
+        users.append(User(
+            user_id=user_student_ids[i],
+            google_sub=f"google_sub_student_{i+1}",
+            email=f"student{i+1}@university.edu",
+            first_name=first_name,
+            last_name=last_name,
+            patronymic=patronymic,
             role=UserRole.STUDENT,
             is_active=True
-        ),
-        User(
-            user_id=user_student2_id,
-            google_sub="google_sub_student_2",
-            email="student2@university.edu",
-            first_name="Анна",
-            last_name="Шевченко",
-            patronymic="Вікторівна",
-            role=UserRole.STUDENT,
-            is_active=True
-        ),
-        User(
-            user_id=user_student3_id,
-            google_sub="google_sub_student_3",
-            email="student3@university.edu",
-            first_name="Олександр",
-            last_name="Мельник",
-            patronymic="Іванович",
-            role=UserRole.STUDENT,
-            is_active=True
-        ),
-    ]
+        ))
     
     # ========== АДМІНІСТРАТОР ==========
     admin = Admin(
@@ -192,142 +216,146 @@ def get_hardcoded_data():
     )
     
     # ========== ВИКЛАДАЧІ ==========
-    teachers = [
-        Teacher(
-            teacher_id=teacher1_id,
-            user_id=user_teacher1_id,
-            first_name="Іван",
-            last_name="Петренко",
-            patronymic="Олександрович",
+    teachers = []
+    for i in range(NUM_TEACHERS):
+        user = users[1 + i]  # Перший user - адмін, потім викладачі
+        teachers.append(Teacher(
+            teacher_id=teacher_ids[i],
+            user_id=user_teacher_ids[i],
+            first_name=user.first_name,
+            last_name=user.last_name,
+            patronymic=user.patronymic,
             status=TeacherStatus.ACTIVE
-        ),
-        Teacher(
-            teacher_id=teacher2_id,
-            user_id=user_teacher2_id,
-            first_name="Марія",
-            last_name="Коваленко",
-            patronymic="Володимирівна",
-            status=TeacherStatus.ACTIVE
-        ),
-        Teacher(
-            teacher_id=teacher3_id,
-            user_id=user_teacher3_id,
-            first_name="Олексій",
-            last_name="Сидоренко",
-            patronymic="Михайлович",
-            status=TeacherStatus.ACTIVE
-        ),
-    ]
+        ))
     
     # ========== СТУДЕНТИ ==========
-    students = [
-        Student(
-            student_id=student1_id,
-            user_id=user_student1_id,
-            group_id=group1_id,
-            first_name="Дмитро",
-            last_name="Іваненко",
-            patronymic="Олегович",
+    # Розподіляємо студентів по групах (приблизно рівномірно)
+    students = []
+    students_per_group = NUM_STUDENTS // NUM_GROUPS
+    for i in range(NUM_STUDENTS):
+        user = users[1 + NUM_TEACHERS + i]  # Після адміна та викладачів
+        group_index = i // students_per_group if students_per_group > 0 else i % NUM_GROUPS
+        if group_index >= NUM_GROUPS:
+            group_index = NUM_GROUPS - 1
+        
+        students.append(Student(
+            student_id=student_ids[i],
+            user_id=user_student_ids[i],
+            group_id=group_ids[group_index],
+            first_name=user.first_name,
+            last_name=user.last_name,
+            patronymic=user.patronymic,
             status=StudentStatus.ACTIVE
-        ),
-        Student(
-            student_id=student2_id,
-            user_id=user_student2_id,
-            group_id=group2_id,
-            first_name="Анна",
-            last_name="Шевченко",
-            patronymic="Вікторівна",
-            status=StudentStatus.ACTIVE
-        ),
-        Student(
-            student_id=student3_id,
-            user_id=user_student3_id,
-            group_id=group1_id,
-            first_name="Олександр",
-            last_name="Мельник",
-            patronymic="Іванович",
-            status=StudentStatus.ACTIVE
-        ),
-    ]
+        ))
     
     # ========== АУДИТОРІЇ ==========
-    rooms = [
-        Room(
-            room_id=room1_id,
-            name="К-10",
-            capacity=30
-        ),
-        Room(
-            room_id=room2_id,
-            name="К-11",
-            capacity=25
-        ),
-        Room(
-            room_id=room3_id,
-            name="К-12",
-            capacity=35
-        ),
-    ]
+    # Аудиторії повинні мати достатню місткість для груп
+    # ВАЖЛИВО: Якщо курс має кілька груп, сумарний розмір ВСІХ груп має поміщатися в аудиторію!
+    # Тому потрібні великі аудиторії (60-100), щоб вмістити кілька груп одночасно
+    rooms = []
+    room_names = ["К-10", "К-11", "К-12", "К-13", "К-14", "К-15", "К-16", "К-17", "К-18", "К-19", 
+                  "К-20", "К-21", "К-22", "К-23", "К-24", "К-25", "К-26", "К-27", "К-28", "К-29",
+                  "К-30", "К-31", "К-32", "К-33", "К-34", "К-35", "К-36", "К-37", "К-38", "К-39"]
+    # Місткість має бути достатньою для кількох груп одночасно (наприклад, 2 групи по 30 = 60)
+    room_capacities = [60, 70, 80, 60, 70, 80, 60, 70, 80, 60, 70, 80, 60, 70, 80, 60, 70, 80, 60, 70,
+                       80, 60, 70, 80, 60, 70, 80, 60, 70, 80]
+    
+    for i in range(NUM_ROOMS):
+        rooms.append(Room(
+            room_id=room_ids[i],
+            name=room_names[i % len(room_names)],
+            capacity=room_capacities[i % len(room_capacities)]
+        ))
     
     # ========== ГРУПИ ==========
-    groups = [
-        Group(
-            group_id=group1_id,
-            name="ТТП-32",
-            size=25,
+    groups = []
+    group_prefixes = ["ТТП", "МІ", "ІПЗ", "КН", "ПМ", "ФІ", "ЕК", "МТ", "СА", "КІ", 
+                      "ПЗ", "ІТ", "КБ", "ПС", "АК", "СМ", "РТ", "БД", "ВМ", "ГР"]
+    group_courses_list = [1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4]  # Курси навчання (1-4) для 20 груп
+    group_types = [GroupType.BACHELOR] * 16 + [GroupType.MASTER] * 4  # Більшість бакалаврів (16 бакалаврів, 4 магістри)
+    group_sizes = [25, 30, 28, 27, 26, 29, 24, 31, 25, 28, 27, 30, 26, 29, 25, 28, 27, 30, 26, 29,
+                   25, 30, 28, 27, 26, 29, 24, 31, 25, 28, 27, 30, 26, 29, 25, 28, 27, 30, 26, 29,
+                   25, 30, 28, 27, 26, 29, 24, 31, 25, 28]  # Розміри груп (мають поміщатися в аудиторії)
+    
+    # Генеруємо унікальні назви груп
+    used_group_names = set()
+    for i in range(NUM_GROUPS):
+        prefix = group_prefixes[i % len(group_prefixes)]
+        course_num = group_courses_list[i % len(group_courses_list)]
+        group_num = (i % 5) + 1  # 1, 2, 3, 4, або 5
+        
+        # Формуємо базову назву
+        base_name = f"{prefix}-{course_num}{group_num}"
+        name = base_name
+        
+        # Якщо назва вже використана, додаємо унікальний суфікс
+        variant = 1
+        while name in used_group_names:
+            name = f"{base_name}-{variant}"
+            variant += 1
+        
+        used_group_names.add(name)
+        
+        groups.append(Group(
+            group_id=group_ids[i],
+            name=name,
+            size=group_sizes[i % len(group_sizes)],
+            type=group_types[i % len(group_types)],
+            course=group_courses_list[i % len(group_courses_list)],
             parent_group_id=None
-        ),
-        Group(
-            group_id=group2_id,
-            name="МІ-31",
-            size=30,
-            parent_group_id=None
-        ),
-        Group(
-            group_id=group3_id,
-            name="ІПЗ-31",
-            size=28,
-            parent_group_id=None
-        ),
-        Group(
-            group_id=group4_id,
-            name="ІПЗ-32",
-            size=27,
-            parent_group_id=None
-        ),
-    ]
+        ))
     
     # ========== КУРСИ ==========
-    courses = [
-        Course(
-            course_id=course1_id,
-            name="Математичний аналіз",
-            duration=60
-        ),
-        Course(
-            course_id=course2_id,
-            name="Програмування",
-            duration=80
-        ),
-        Course(
-            course_id=course3_id,
-            name="Бази даних",
-            duration=40
-        ),
+    courses = []
+    # Базові назви курсів (будуть повторюватися з номерами для 240 курсів)
+    base_course_names = [
+        "Математичний аналіз", "Програмування", "Бази даних", "Дискретна математика",
+        "Алгоритми та структури даних", "Операційні системи", "Комп'ютерні мережі",
+        "Веб-програмування", "Машинне навчання", "Комп'ютерна графіка",
+        "Теорія ймовірностей", "Лінійна алгебра", "Архітектура комп'ютерів",
+        "Програмна інженерія", "Кібербезпека", "Штучний інтелект",
+        "Мобільні додатки", "Хмарні обчислення", "Великі дані", "Розподілені системи",
+        "Обчислювальна геометрія", "Теорія алгоритмів", "Компілятори", "Паралельні обчислення",
+        "Комп'ютерна безпека", "Криптографія", "Блокчейн технології", "Інтернет речей",
+        "Розробка програмного забезпечення", "Тестування програмного забезпечення", "Проектний менеджмент",
+        "Економіка програмної інженерії", "Етика в IT", "Історія обчислювальної техніки",
+        "Квантові обчислення", "Біоінформатика", "Комп'ютерна лінгвістика", "Штучна нейронна мережа",
+        "Глибоке навчання", "Обробка природної мови", "Комп'ютерний зір", "Робототехніка",
+        "Системний аналіз", "Управління проектами", "Аналіз даних", "Статистика",
+        "Математична логіка", "Теорія множин", "Теорія графів", "Комбінаторика"
     ]
+    base_durations = [60, 80, 40, 60, 80, 60, 40, 80, 60, 40, 60, 60, 40, 80, 60, 60, 80, 60, 40, 60,
+                      60, 80, 40, 60, 80, 60, 40, 80, 60, 40, 60, 60, 40, 80, 60, 60, 80, 60, 40, 60,
+                      60, 80, 40, 60, 80, 60, 40, 80, 60, 40]
+    
+    for i in range(NUM_COURSES):
+        base_name = base_course_names[i % len(base_course_names)]
+        # Додаємо номер, якщо курс повторюється
+        if i >= len(base_course_names):
+            variant_num = (i // len(base_course_names)) + 1
+            course_name = f"{base_name} ({variant_num})"
+        else:
+            course_name = base_name
+        
+        courses.append(Course(
+            course_id=course_ids[i],
+            name=course_name,
+            code=f"CS{i+1:03d}",
+            duration=base_durations[i % len(base_durations)]
+        ))
     
     # ========== ПАРИ (LESSONS) ==========
     # Максимум 4 пари на день (lesson_id 1-4) - обмеження в БД
     lessons = [
         Lesson(
             lesson_id=1,
-            start_time=time(8, 30),
-            end_time=time(10, 5)
+            start_time=time(8, 40),
+            end_time=time(10, 15)
         ),
         Lesson(
             lesson_id=2,
-            start_time=time(10, 25),
-            end_time=time(12, 0)
+            start_time=time(10, 35),
+            end_time=time(12, 10)
         ),
         Lesson(
             lesson_id=3,
@@ -342,13 +370,13 @@ def get_hardcoded_data():
     ]
     
     # ========== ЧАСОВІ СЛОТИ (TIMESLOTS) ==========
-    # Створюємо timeslots для всіх робочих днів (понеділок-п'ятниця, дні 1-5)
+    # Створюємо timeslots для робочих днів (понеділок-п'ятниця, дні 1-5)
     # для всіх пар (1-4) та всіх частот (all, odd, even)
     # timeslot_id буде автоматично згенерований (autoincrement)
     # Це дає: 5 днів * 4 пари * 3 частоти = 60 слотів загалом
     # Для frequency="all": 5 днів * 4 пари = 20 слотів
     timeslots = []
-    for day in [1, 2, 3, 4, 5]:  # Понеділок - П'ятниця
+    for day in [1, 2, 3, 4, 5]:  # Понеділок - П'ятниця (тільки робочі дні)
         for lesson_id in [1, 2, 3, 4]:  # Максимум 4 пари на день
             for freq in [TimeslotFrequency.ALL, TimeslotFrequency.ODD, TimeslotFrequency.EVEN]:
                 timeslots.append(
@@ -366,168 +394,148 @@ def get_hardcoded_data():
     )
     
     # ========== ПРИЗНАЧЕННЯ (ASSIGNMENTS) ==========
-    # Приклад призначень для розкладу
-    # timeslot_id буде отримано після додавання timeslots в БД
-    # Тут зберігаємо інформацію про timeslot для пошуку
-    assignments_data = [
-        {
-            'day': 1,  # Понеділок
-            'lesson_id': 1,
-            'frequency': TimeslotFrequency.ALL,
-            'group_id': group1_id,
-            'subgroup_no': 1,
-            'course_id': course1_id,
-            'teacher_id': teacher1_id,
-            'room_id': room1_id,
-            'course_type': 'lec'
-        },
-        {
-            'day': 1,  # Понеділок
-            'lesson_id': 2,
-            'frequency': TimeslotFrequency.ALL,
-            'group_id': group2_id,
-            'subgroup_no': 1,
-            'course_id': course2_id,
-            'teacher_id': teacher2_id,
-            'room_id': room2_id,
-            'course_type': 'prac'
-        },
-        {
-            'day': 3,  # Середа
-            'lesson_id': 1,
-            'frequency': TimeslotFrequency.ALL,
-            'group_id': group3_id,
-            'subgroup_no': 1,
-            'course_id': course3_id,
-            'teacher_id': teacher3_id,
-            'room_id': room3_id,
-            'course_type': 'lab'
-        },
-        {
-            'day': 5,  # П'ятниця
-            'lesson_id': 3,
-            'frequency': TimeslotFrequency.ALL,
-            'group_id': group4_id,
-            'subgroup_no': 1,
-            'course_id': course2_id,
-            'teacher_id': teacher2_id,
-            'room_id': room1_id,
-            'course_type': 'prac'
-        },
-    ]
+    # Не створюємо призначення заздалегідь - мікросервіс сам їх створить
+    # Це тільки для тестових даних, якщо потрібно
+    assignments_data = []
     
     # ========== GROUP_COURSE (зв'язки груп з курсами) ==========
-    group_courses = [
-        GroupCourse(
-            group_id=group1_id,
-            course_id=course1_id,
-            count_per_week=2,
-            frequency=CourseFrequency.WEEKLY
-        ),
-        GroupCourse(
-            group_id=group2_id,
-            course_id=course2_id,
-            count_per_week=3,
-            frequency=CourseFrequency.WEEKLY
-        ),
-        GroupCourse(
-            group_id=group3_id,
-            course_id=course3_id,
-            count_per_week=2,
-            frequency=CourseFrequency.WEEKLY
-        ),
-        GroupCourse(
-            group_id=group4_id,
-            course_id=course2_id,
-            count_per_week=2,
-            frequency=CourseFrequency.WEEKLY
-        ),
-    ]
+    # Кожна група має рівно 8 курсів
+    # ВАЖЛИВО: Кожна група має УНІКАЛЬНІ курси, щоб уникнути об'єднання груп в один курс
+    # Це гарантує, що кожен курс має тільки одну групу, і сумарний розмір = розмір групи
+    # 20 груп * 8 курсів = 160 курсів
+    # Кожна група: 6 курсів з countPerWeek=1 + 2 курси з countPerWeek=2
+    # 120 курсів з countPerWeek=1 = 120 призначень
+    # 40 курсів з countPerWeek=2 = 80 призначень
+    # Всього: 120 + 80 = 200 призначень
+    # Це забезпечить більше занять в день для кожної групи (2 пари на день в середньому)
+    group_courses = []
+    course_counter = 0  # Лічильник для унікальних курсів
+    for group_idx in range(NUM_GROUPS):
+        num_courses = 8  # Рівно 8 курсів на групу
+        
+        for course_idx in range(num_courses):
+            # Кожна група має унікальні курси (не повторюються між групами)
+            # Це гарантує, що курси не об'єднуються між групами
+            course_id = course_ids[course_counter % NUM_COURSES]
+            course_counter += 1
+            
+            # Розподіл countPerWeek: кожна група має 6 курсів з countPerWeek=1 і 2 з countPerWeek=2
+            # Це забезпечує рівномірний розподіл занять по групах
+            # Для кожної групи: перші 6 курсів мають countPerWeek=1, останні 2 - countPerWeek=2
+            # Це дає: 120 * 1 + 40 * 2 = 120 + 80 = 200 призначень
+            # (в середньому 10 призначень на групу на тиждень = 2 пари на день)
+            if course_idx < 6:
+                # Перші 6 курсів в кожній групі мають countPerWeek=1
+                count_per_week = 1
+            else:
+                # Останні 2 курси в кожній групі мають countPerWeek=2
+                count_per_week = 2
+            
+            # Використовуємо різні частоти для розподілу по всіх доступних слотах
+            # ВАЖЛИВО: Курси з countPerWeek=2 мають frequency=WEEKLY, щоб використовувати всі доступні слоти
+            # Курси з countPerWeek=1 можуть мати різні частоти для розподілу
+            if count_per_week == 2:
+                # Курси з countPerWeek=2 завжди WEEKLY для максимального використання слотів
+                frequency = CourseFrequency.WEEKLY
+            else:
+                # Курси з countPerWeek=1 розподіляємо по частотах для рівномірного розподілу
+                # Використовуємо group_idx * 8 + course_idx для унікальності
+                freq_mod = (group_idx * 8 + course_idx) % 3
+                if freq_mod == 0:
+                    frequency = CourseFrequency.WEEKLY
+                elif freq_mod == 1:
+                    frequency = CourseFrequency.ODD
+                else:
+                    frequency = CourseFrequency.EVEN
+            
+            group_courses.append(GroupCourse(
+                group_id=group_ids[group_idx],
+                course_id=course_id,
+                count_per_week=count_per_week,
+                frequency=frequency
+            ))
     
     # ========== TEACHER_COURSE (зв'язки викладачів з курсами) ==========
-    teacher_courses = [
-        TeacherCourse(
-            teacher_id=teacher1_id,
-            course_id=course1_id
-        ),
-        TeacherCourse(
-            teacher_id=teacher2_id,
-            course_id=course2_id
-        ),
-        TeacherCourse(
-            teacher_id=teacher3_id,
-            course_id=course3_id
-        ),
-    ]
+    # Переконаємося, що кожен курс має рівно одного викладача
+    # Використаємо унікальні курси з GroupCourse, щоб призначити викладачів
+    teacher_courses = []
+    
+    # Зберігаємо які курси використовуються в GroupCourse
+    used_courses = set()
+    for gc in group_courses:
+        used_courses.add(gc.course_id)
+    
+    # Призначимо викладачів на всі курси, які використовуються
+    # Кожен курс має рівно одного викладача
+    course_to_teacher = {}
+    teacher_course_count = {}  # Підрахунок курсів на викладача
+    
+    for course_id in used_courses:
+        # Знайдемо викладача з найменшою кількістю курсів
+        teacher_idx = min(range(NUM_TEACHERS), 
+                         key=lambda i: teacher_course_count.get(teacher_ids[i], 0))
+        
+        course_to_teacher[course_id] = teacher_ids[teacher_idx]
+        teacher_course_count[teacher_ids[teacher_idx]] = teacher_course_count.get(teacher_ids[teacher_idx], 0) + 1
+        
+        teacher_courses.append(TeacherCourse(
+            teacher_id=teacher_ids[teacher_idx],
+            course_id=course_id
+        ))
+    
+    # ========== STUDENT_GROUP (зв'язки студентів з групами) ==========
+    # Ці зв'язки потрібні для SQL join у методі find_by_teacher_id
+    # Студенти вже мають group_id в Student, але потрібні зв'язки для join
+    student_groups = []
+    students_per_group = NUM_STUDENTS // NUM_GROUPS
+    for student_idx in range(NUM_STUDENTS):
+        group_idx = student_idx // students_per_group if students_per_group > 0 else student_idx % NUM_GROUPS
+        if group_idx >= NUM_GROUPS:
+            group_idx = NUM_GROUPS - 1
+        
+        student_groups.append(StudentGroup(
+            student_id=student_ids[student_idx],
+            group_id=group_ids[group_idx]
+        ))
     
     # ========== ЗАЯВКИ НА РЕЄСТРАЦІЮ (REGISTRATION REQUESTS) ==========
-    registration_requests = [
-        # Заявка студента в очікуванні
-        RegistrationRequest(
-            request_id=registration1_id,
-            google_sub="google_sub_registration_1",
-            email="newstudent1@university.edu",
-            first_name="Олег",
-            last_name="Ткаченко",
-            patronymic="Сергійович",
-            requested_role=UserRole.STUDENT,
-            status=RegistrationStatus.PENDING,
-            group_id=group1_id,
-            admin_note=None
-        ),
-        # Заявка викладача в очікуванні
-        RegistrationRequest(
-            request_id=registration2_id,
-            google_sub="google_sub_registration_2",
-            email="newteacher1@university.edu",
-            first_name="Наталія",
-            last_name="Бондаренко",
-            patronymic="Ігорівна",
-            requested_role=UserRole.TEACHER,
-            status=RegistrationStatus.PENDING,
-            group_id=None,
-            admin_note=None
-        ),
-        # Заявка студента схвалена
-        RegistrationRequest(
-            request_id=registration3_id,
-            google_sub="google_sub_registration_3",
-            email="approvedstudent@university.edu",
-            first_name="Віктор",
-            last_name="Морозенко",
-            patronymic="Андрійович",
-            requested_role=UserRole.STUDENT,
-            status=RegistrationStatus.APPROVED,
-            group_id=group2_id,
-            admin_note="Схвалено адміністратором"
-        ),
-        # Заявка викладача відхилена
-        RegistrationRequest(
-            request_id=registration4_id,
-            google_sub="google_sub_registration_4",
-            email="rejectedteacher@university.edu",
-            first_name="Сергій",
-            last_name="Лисенко",
-            patronymic="Петрович",
-            requested_role=UserRole.TEACHER,
-            status=RegistrationStatus.REJECTED,
-            group_id=None,
-            admin_note="Недостатньо кваліфікації"
-        ),
-        # Заявка студента в очікуванні без групи
-        RegistrationRequest(
-            request_id=registration5_id,
-            google_sub="google_sub_registration_5",
-            email="newstudent2@university.edu",
-            first_name="Катерина",
-            last_name="Романенко",
-            patronymic="Дмитрівна",
-            requested_role=UserRole.STUDENT,
-            status=RegistrationStatus.PENDING,
-            group_id=None,
-            admin_note=None
-        ),
-    ]
+    registration_requests = []
+    reg_first_names = ["Олег", "Наталія", "Віктор", "Сергій", "Катерина", "Андрій", "Олена", "Дмитро", "Ірина", "Павло"]
+    reg_last_names = ["Ткаченко", "Бондаренко", "Морозенко", "Лисенко", "Романенко", "Коваль", "Шевчук", "Мельник", "Петренко", "Сидоренко"]
+    reg_patronymics = ["Сергійович", "Ігорівна", "Андрійович", "Петрович", "Дмитрівна", "Олександрович", "Володимирівна", "Михайлович", "Олегович", "Вікторівна"]
+    reg_statuses = [RegistrationStatus.PENDING, RegistrationStatus.PENDING, RegistrationStatus.APPROVED, 
+                   RegistrationStatus.REJECTED, RegistrationStatus.PENDING, RegistrationStatus.PENDING,
+                   RegistrationStatus.APPROVED, RegistrationStatus.PENDING, RegistrationStatus.REJECTED, RegistrationStatus.PENDING]
+    reg_roles = [UserRole.STUDENT, UserRole.TEACHER, UserRole.STUDENT, UserRole.TEACHER, UserRole.STUDENT,
+                UserRole.STUDENT, UserRole.TEACHER, UserRole.STUDENT, UserRole.TEACHER, UserRole.STUDENT]
+    reg_notes = [None, None, "Схвалено адміністратором", "Недостатньо кваліфікації", None, None,
+                "Схвалено", None, "Не відповідає вимогам", None]
+    
+    for i in range(NUM_REGISTRATIONS):
+        # Визначаємо чи студент чи викладач (використовуємо модульну арифметику)
+        role_idx = i % len(reg_roles)
+        is_student = reg_roles[role_idx] == UserRole.STUDENT
+        group_id = None
+        status_idx = i % len(reg_statuses)
+        if is_student and reg_statuses[status_idx] == RegistrationStatus.APPROVED:
+            # Схвалені студенти отримують групу
+            group_id = group_ids[i % NUM_GROUPS]
+        elif is_student and i % 3 == 0:
+            # Деякі студенти в очікуванні вже мають групу
+            group_id = group_ids[i % NUM_GROUPS]
+        
+        registration_requests.append(RegistrationRequest(
+            request_id=registration_ids[i],
+            google_sub=f"google_sub_registration_{i+1}",
+            email=f"new{'student' if is_student else 'teacher'}{i+1}@university.edu",
+            first_name=reg_first_names[i % len(reg_first_names)],
+            last_name=reg_last_names[i % len(reg_last_names)],
+            patronymic=reg_patronymics[i % len(reg_patronymics)],
+            requested_role=reg_roles[role_idx],
+            status=reg_statuses[status_idx],
+            group_id=group_id,
+            admin_note=reg_notes[i % len(reg_notes)]
+        ))
     
     return {
         'users': users,
@@ -543,6 +551,7 @@ def get_hardcoded_data():
         'assignments_data': assignments_data,  # Дані для assignments (без timeslot_id)
         'group_courses': group_courses,
         'teacher_courses': teacher_courses,
+        'student_groups': student_groups,
         'registration_requests': registration_requests,
     }
 
@@ -641,6 +650,13 @@ def add_to_database_sync(session: Session, data: dict):
     session.commit()
     print("✓ TeacherCourse додані\n")
     
+    # Додаємо зв'язки StudentGroup (потрібні для SQL join)
+    print(f"Додаю {len(data['student_groups'])} зв'язків StudentGroup...")
+    for sg in data['student_groups']:
+        session.merge(sg)
+    session.commit()
+    print("✓ StudentGroup додані\n")
+    
     # Додаємо призначення (assignments)
     # Спочатку знаходимо timeslot_id для кожного призначення
     print(f"Додаю {len(data['assignments_data'])} призначень...")
@@ -733,6 +749,13 @@ async def init_schedule_data():
                     session.merge(registration)  # merge оновить існуючі або додасть нові
                 session.commit()
                 print(f"✓ {len(data['registration_requests'])} заявок на реєстрацію перевірено/додано\n")
+                
+                # Завжди додаємо зв'язки StudentGroup через merge (не створить дублікатів)
+                print("Додаю зв'язки StudentGroup (merge - не створить дублікатів)...\n")
+                for sg in data['student_groups']:
+                    session.merge(sg)  # merge оновить існуючі або додасть нові
+                session.commit()
+                print(f"✓ {len(data['student_groups'])} зв'язків StudentGroup перевірено/додано\n")
                 
                 _initialization_completed = True
                 return

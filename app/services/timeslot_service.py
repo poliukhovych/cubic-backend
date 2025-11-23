@@ -1,6 +1,9 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
+
+from app.repositories.lesson_repository import LessonRepository
 
 from app.repositories.timeslot_repository import TimeslotRepository
+from app.schemas.timeslot import TimeslotResponse, LessonResponse, TimeslotListResponse
 
 
 class TimeslotService:
@@ -13,8 +16,9 @@ class TimeslotService:
         1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat", 7: "sun"
     }
 
-    def __init__(self, repo: TimeslotRepository):
+    def __init__(self, repo: TimeslotRepository, lesson_repo: LessonRepository):
         self.repo = repo
+        self.lesson_repo = lesson_repo
 
     async def get_all_formatted(self) -> List[str]:
         """
@@ -66,3 +70,51 @@ class TimeslotService:
             mapping[fmt_id] = ts.timeslot_id
 
         return mapping
+
+    async def get_all_timeslots(self) -> TimeslotListResponse:
+        """
+        Retrieves all timeslots with full information including lesson details.
+        """
+        timeslots = await self.repo.find_all()
+        
+        # Load all lessons
+        all_lessons = await self.lesson_repo.find_all()
+        lesson_map = {lesson.lesson_id: lesson for lesson in all_lessons}
+        
+        # Build timeslot responses
+        timeslot_responses = []
+        for ts in timeslots:
+            lesson = lesson_map.get(ts.lesson_id)
+            if not lesson:
+                continue  # Skip if lesson not found
+            
+            lesson_response = LessonResponse.model_validate(lesson)
+            timeslot_response = TimeslotResponse(
+                timeslot_id=ts.timeslot_id,
+                day=ts.day,
+                frequency=ts.frequency,
+                lesson=lesson_response
+            )
+            timeslot_responses.append(timeslot_response)
+        
+        return TimeslotListResponse(timeslots=timeslot_responses, total=len(timeslot_responses))
+
+    async def get_timeslot_by_id(self, timeslot_id: int) -> Optional[TimeslotResponse]:
+        """
+        Retrieves a single timeslot by ID with full information including lesson details.
+        """
+        timeslot = await self.repo.find_by_id(timeslot_id)
+        if not timeslot:
+            return None
+        
+        lesson = await self.lesson_repo.find_by_id(timeslot.lesson_id)
+        if not lesson:
+            return None
+        
+        lesson_response = LessonResponse.model_validate(lesson)
+        return TimeslotResponse(
+            timeslot_id=timeslot.timeslot_id,
+            day=timeslot.day,
+            frequency=timeslot.frequency,
+            lesson=lesson_response
+        )
