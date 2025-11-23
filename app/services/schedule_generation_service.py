@@ -660,6 +660,7 @@ class ScheduleGenerationService:
                         
                         # Формуємо відповідь з roomName для зручності фронтенду
                         # Отримуємо кімнати для мапінгу room_id -> room_name
+                        from app.schemas.assignment import AssignmentResponse
                         rooms_resp = await self.room_service.get_all_rooms()
                         room_id_to_name = {room.room_id: room.name for room in rooms_resp.rooms}
                         logger.debug(f"Створено мапінг кімнат: {len(room_id_to_name)} кімнат")
