@@ -28,6 +28,10 @@ from .scheduling.teacher_preference import TeacherPreference
 from .scheduling.group_availability import GroupUnavailability
 from .common_enums import CourseFrequency, TimeslotFrequency
 
+# Academic
+from .academic.grade import Grade
+from .academic.homework import Homework, HomeworkFile
+
 __all__ = [
     # Catalog
     "Course",
@@ -57,4 +61,8 @@ __all__ = [
     "GroupUnavailability",
     "CourseFrequency",
     "TimeslotFrequency",
+    # Academic
+    "Grade",
+    "Homework",
+    "HomeworkFile",
 ]

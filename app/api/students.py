@@ -5,9 +5,19 @@ import uuid
 from app.repositories.students_repository import StudentRepository
 from app.services.assignment_service import AssignmentService
 from app.services.schedule_service import ScheduleService
-from app.core.deps import get_student_repository, get_assignment_service, get_schedule_service
+from app.services.grade_service import GradeService
+from app.services.homework_service import HomeworkService
+from app.core.deps import (
+    get_student_repository, 
+    get_assignment_service, 
+    get_schedule_service,
+    get_grade_service,
+    get_homework_service
+)
 from app.schemas.student import StudentOut
 from app.schemas.assignment import AssignmentResponse
+from app.schemas.grade import StudentGradesResponse
+from app.schemas.homework import StudentHomeworkResponse
 
 router = APIRouter()
 
@@ -59,4 +69,58 @@ async def get_student_schedule(
     
     # Конвертуємо в схему відповіді
     return [AssignmentResponse.model_validate(assignment) for assignment in assignments]
+
+
+@router.get("/{student_id}/grades", response_model=StudentGradesResponse)
+async def get_student_grades(
+    student_id: uuid.UUID,
+    student_repository: StudentRepository = Depends(get_student_repository),
+    grade_service: GradeService = Depends(get_grade_service)
+) -> StudentGradesResponse:
+    """
+    Отримує оцінки конкретного студента.
+    
+    Повертає оцінки, згруповані за предметами.
+    """
+    # Перевіряємо, чи існує студент
+    student = await student_repository.find_by_id(student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Student with id {student_id} not found"
+        )
+    
+    # Отримуємо оцінки
+    grades_data = await grade_service.get_student_grades(student_id)
+    
+    return StudentGradesResponse.model_validate(grades_data)
+
+
+@router.get("/{student_id}/homework", response_model=StudentHomeworkResponse)
+async def get_student_homework(
+    student_id: uuid.UUID,
+    include_done: bool = Query(True, description="Include completed homework"),
+    student_repository: StudentRepository = Depends(get_student_repository),
+    homework_service: HomeworkService = Depends(get_homework_service)
+) -> StudentHomeworkResponse:
+    """
+    Отримує домашні завдання конкретного студента.
+    
+    Повертає список домашніх завдань з можливістю фільтрації виконаних.
+    """
+    # Перевіряємо, чи існує студент
+    student = await student_repository.find_by_id(student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Student with id {student_id} not found"
+        )
+    
+    # Отримуємо домашні завдання
+    homework_data = await homework_service.get_student_homework(
+        student_id, 
+        include_done=include_done
+    )
+    
+    return StudentHomeworkResponse.model_validate(homework_data)
 
