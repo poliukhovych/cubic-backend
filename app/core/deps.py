@@ -19,6 +19,8 @@ from app.repositories.constraint_repository import ConstraintRepository
 from app.repositories.students_repository import StudentRepository
 from app.repositories.grade_repository import GradeRepository
 from app.repositories.homework_repository import HomeworkRepository
+from app.repositories.attendance_repository import AttendanceRepository
+from app.repositories.homework_submission_repository import HomeworkSubmissionRepository
 
 # --- Import Services ---
 from app.services.group_service import GroupService
@@ -38,6 +40,7 @@ from app.services.subgroup_constraint_service import SubgroupConstraintService
 from app.services.schedule_generation_service import ScheduleGenerationService
 from app.services.grade_service import GradeService
 from app.services.homework_service import HomeworkService
+from app.services.attendance_service import AttendanceService
 
 
 async def get_session():
@@ -124,6 +127,16 @@ def get_homework_repository(
 ) -> HomeworkRepository:
     return HomeworkRepository(session)
 
+def get_attendance_repository(
+    session: AsyncSession = Depends(get_session)
+) -> AttendanceRepository:
+    return AttendanceRepository(session)
+
+def get_homework_submission_repository(
+    session: AsyncSession = Depends(get_session)
+) -> HomeworkSubmissionRepository:
+    return HomeworkSubmissionRepository(session)
+
 
 # --- Service Providers ---
 
@@ -207,9 +220,16 @@ def get_grade_service(
     return GradeService(repo)
 
 def get_homework_service(
-    repo: HomeworkRepository = Depends(get_homework_repository)
+    repo: HomeworkRepository = Depends(get_homework_repository),
+    submission_repo: HomeworkSubmissionRepository = Depends(get_homework_submission_repository)
 ) -> HomeworkService:
-    return HomeworkService(repo)
+    return HomeworkService(repo, submission_repo)
+
+def get_attendance_service(
+    repo: AttendanceRepository = Depends(get_attendance_repository),
+    session: AsyncSession = Depends(get_session)
+) -> AttendanceService:
+    return AttendanceService(repo, session)
 
 # --- Orchestrator Provider ---
 

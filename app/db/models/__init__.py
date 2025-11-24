@@ -31,6 +31,8 @@ from .common_enums import CourseFrequency, TimeslotFrequency
 # Academic
 from .academic.grade import Grade
 from .academic.homework import Homework, HomeworkFile
+from .academic.attendance import Attendance, AttendanceStatus
+from .academic.homework_submission import HomeworkSubmission, HomeworkSubmissionFile
 
 __all__ = [
     # Catalog
@@ -65,4 +67,8 @@ __all__ = [
     "Grade",
     "Homework",
     "HomeworkFile",
+    "Attendance",
+    "AttendanceStatus",
+    "HomeworkSubmission",
+    "HomeworkSubmissionFile",
 ]

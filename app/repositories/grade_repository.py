@@ -91,3 +91,29 @@ class GradeRepository:
 
         return list(courses_dict.values())
 
+    async def create(
+        self,
+        *,
+        student_id: UUID,
+        course_id: UUID,
+        teacher_id: UUID,
+        points: float,
+        max_points: float | None = None,
+        comment: str | None = None,
+        classroom_url: str | None = None,
+    ) -> Grade:
+        """Creates a new grade."""
+        grade = Grade(
+            student_id=student_id,
+            course_id=course_id,
+            teacher_id=teacher_id,
+            points=points,
+            max_points=max_points,
+            comment=comment,
+            classroom_url=classroom_url,
+        )
+        self._session.add(grade)
+        await self._session.flush()
+        await self._session.refresh(grade)
+        return grade
+

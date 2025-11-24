@@ -7,11 +7,22 @@ from app.services.course_service import CourseService
 from app.services.group_service import GroupService
 from app.services.assignment_service import AssignmentService
 from app.services.schedule_service import ScheduleService
+from app.services.grade_service import GradeService
+from app.services.homework_service import HomeworkService
+from app.services.attendance_service import AttendanceService
 from app.repositories.students_repository import StudentRepository
-from app.core.deps import get_teacher_service, get_course_service, get_group_service, get_assignment_service, get_schedule_service, get_student_repository
+from app.core.deps import (
+    get_teacher_service, get_course_service, get_group_service, get_assignment_service, 
+    get_schedule_service, get_student_repository, get_grade_service, get_homework_service,
+    get_attendance_service
+)
 from app.schemas.teacher import TeacherCreate, TeacherUpdate, TeacherResponse, TeacherListResponse
 from app.schemas.assignment import AssignmentResponse
 from app.schemas.student import StudentOut
+from app.schemas.grade import GradeCreate, GradeResponse
+from app.schemas.homework import HomeworkCreate, HomeworkSubmissionsResponse
+from app.schemas.attendance import AttendanceCreate, AttendanceResponse
+from datetime import datetime, date
 
 router = APIRouter()
 
@@ -208,3 +219,184 @@ async def get_teacher_students(
     
     # Конвертуємо в схему відповіді
     return [StudentOut.model_validate(student) for student in students]
+
+
+@router.post("/{teacher_id}/grades", response_model=GradeResponse, status_code=status.HTTP_201_CREATED)
+async def create_grade(
+    teacher_id: uuid.UUID,
+    grade_data: GradeCreate,
+    teacher_service: TeacherService = Depends(get_teacher_service),
+    grade_service: GradeService = Depends(get_grade_service)
+) -> GradeResponse:
+    """
+    Створює оцінку для студента.
+    """
+    # Перевіряємо, чи існує викладач
+    teacher = await teacher_service.get_teacher_by_id(teacher_id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Teacher with id {teacher_id} not found"
+        )
+    
+    # Створюємо оцінку
+    grade = await grade_service.create_grade(
+        student_id=grade_data.student_id,
+        course_id=grade_data.course_id,
+        teacher_id=teacher_id,
+        points=grade_data.points,
+        max_points=grade_data.max_points,
+        comment=grade_data.comment,
+        classroom_url=grade_data.classroom_url,
+    )
+    
+    return GradeResponse(
+        id=str(grade.grade_id),
+        studentId=str(grade.student_id),
+        courseId=str(grade.course_id),
+        teacherId=str(grade.teacher_id),
+        points=float(grade.points),
+        maxPoints=float(grade.max_points) if grade.max_points else None,
+        comment=grade.comment,
+        classroomUrl=grade.classroom_url,
+        createdAt=grade.created_at.isoformat() if grade.created_at else "",
+    )
+
+
+@router.post("/{teacher_id}/homework", status_code=status.HTTP_201_CREATED)
+async def create_homework(
+    teacher_id: uuid.UUID,
+    homework_data: HomeworkCreate,
+    teacher_service: TeacherService = Depends(get_teacher_service),
+    homework_service: HomeworkService = Depends(get_homework_service)
+):
+    """
+    Створює домашнє завдання для вказаних груп.
+    """
+    # Перевіряємо, чи існує викладач
+    teacher = await teacher_service.get_teacher_by_id(teacher_id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Teacher with id {teacher_id} not found"
+        )
+    
+    # Парсимо дату
+    try:
+        due_date = datetime.fromisoformat(homework_data.due_date.replace('Z', '+00:00')).date()
+    except:
+        due_date = datetime.strptime(homework_data.due_date, "%Y-%m-%d").date()
+    
+    # Створюємо домашнє завдання
+    attachments = None
+    if homework_data.attachments:
+        attachments = [{"url": a.url, "title": a.title} for a in homework_data.attachments]
+    
+    created_homework = await homework_service.create_homework_for_groups(
+        course_id=homework_data.course_id,
+        group_ids=homework_data.group_ids,
+        teacher_id=teacher_id,
+        text=f"{homework_data.title}\n\n{homework_data.description}",
+        due_date=due_date,
+        attachments=attachments,
+    )
+    
+    return {
+        "message": f"Homework created for {len(created_homework)} students",
+        "count": len(created_homework),
+    }
+
+
+@router.get("/{teacher_id}/homework")
+async def get_teacher_homework(
+    teacher_id: uuid.UUID,
+    teacher_service: TeacherService = Depends(get_teacher_service),
+    homework_service: HomeworkService = Depends(get_homework_service)
+):
+    """
+    Отримує всі домашні завдання викладача.
+    """
+    # Перевіряємо, чи існує викладач
+    teacher = await teacher_service.get_teacher_by_id(teacher_id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Teacher with id {teacher_id} not found"
+        )
+    
+    # Отримуємо домашні завдання
+    homework_data = await homework_service.get_teacher_homework(teacher_id)
+    
+    return homework_data
+
+
+@router.get("/{teacher_id}/homework/{homework_id}/submissions", response_model=HomeworkSubmissionsResponse)
+async def get_homework_submissions(
+    teacher_id: uuid.UUID,
+    homework_id: uuid.UUID,
+    teacher_service: TeacherService = Depends(get_teacher_service),
+    homework_service: HomeworkService = Depends(get_homework_service)
+) -> HomeworkSubmissionsResponse:
+    """
+    Отримує всі відправки для конкретного домашнього завдання.
+    """
+    # Перевіряємо, чи існує викладач
+    teacher = await teacher_service.get_teacher_by_id(teacher_id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Teacher with id {teacher_id} not found"
+        )
+    
+    # Отримуємо відправки
+    submissions_data = await homework_service.get_homework_submissions(homework_id)
+    
+    return HomeworkSubmissionsResponse.model_validate(submissions_data)
+
+
+@router.post("/{teacher_id}/lessons/{assignment_id}/attendance", status_code=status.HTTP_201_CREATED)
+async def mark_attendance(
+    teacher_id: uuid.UUID,
+    assignment_id: uuid.UUID,
+    attendance_data: AttendanceCreate,
+    teacher_service: TeacherService = Depends(get_teacher_service),
+    attendance_service: AttendanceService = Depends(get_attendance_service)
+):
+    """
+    Відмічає присутність студентів на занятті.
+    """
+    # Перевіряємо, чи існує викладач
+    teacher = await teacher_service.get_teacher_by_id(teacher_id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Teacher with id {teacher_id} not found"
+        )
+    
+    # Парсимо дату
+    try:
+        attendance_date = datetime.fromisoformat(attendance_data.date.replace('Z', '+00:00')).date()
+    except:
+        attendance_date = datetime.strptime(attendance_data.date, "%Y-%m-%d").date()
+    
+    # Підготовлюємо дані студентів
+    students_data = [
+        {
+            "student_id": str(student.student_id),
+            "status": student.status,
+            "note": student.note,
+        }
+        for student in attendance_data.students
+    ]
+    
+    # Відмічаємо присутність
+    attendances = await attendance_service.mark_attendance(
+        assignment_id=assignment_id,
+        attendance_date=attendance_date,
+        students=students_data,
+    )
+    
+    return {
+        "message": f"Attendance marked for {len(attendances)} students",
+        "count": len(attendances),
+    }

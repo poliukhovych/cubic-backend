@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.academic.homework import Homework, HomeworkFile
 from app.db.models.catalog.course import Course
+from app.db.models.people.student import Student
 
 
 class HomeworkRepository:
@@ -104,4 +105,73 @@ class HomeworkRepository:
         delta = row.max_date - row.min_date
         weeks = (delta.days // 7) + 1  # At least 1 week
         return max(weeks, 1)
+
+    async def create(
+        self,
+        *,
+        student_id: UUID,
+        course_id: UUID,
+        group_id: UUID,
+        teacher_id: UUID,
+        text: str,
+        due_date: date,
+        classroom_url: str | None = None,
+    ) -> Homework:
+        """Creates a new homework assignment."""
+        homework = Homework(
+            student_id=student_id,
+            course_id=course_id,
+            group_id=group_id,
+            teacher_id=teacher_id,
+            text=text,
+            due_date=due_date,
+            classroom_url=classroom_url,
+        )
+        self._session.add(homework)
+        await self._session.flush()
+        await self._session.refresh(homework)
+        return homework
+
+    async def create_file(
+        self,
+        *,
+        homework_id: UUID,
+        url: str,
+        title: str | None = None,
+    ) -> HomeworkFile:
+        """Creates a new homework file."""
+        file = HomeworkFile(
+            homework_id=homework_id,
+            url=url,
+            title=title,
+        )
+        self._session.add(file)
+        await self._session.flush()
+        await self._session.refresh(file)
+        return file
+
+    async def find_by_teacher_id(
+        self, teacher_id: UUID
+    ) -> List[tuple]:
+        """
+        Finds all homework for a specific teacher with course names joined.
+        Returns list of tuples: (Homework, Course.name)
+        """
+        stmt = (
+            select(Homework, Course.name)
+            .join(Course, Course.course_id == Homework.course_id)
+            .where(Homework.teacher_id == teacher_id)
+            .order_by(Homework.due_date.desc(), Homework.created_at.desc())
+        )
+        result = await self._session.execute(stmt)
+        return list(result.all())
+
+    async def find_students_by_group_ids(self, group_ids: List[UUID]) -> List[Student]:
+        """Finds all students in the given groups."""
+        stmt = (
+            select(Student)
+            .where(Student.group_id.in_(group_ids))
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
 
