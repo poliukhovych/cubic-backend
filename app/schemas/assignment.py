@@ -25,6 +25,19 @@ class AssignmentCreate(MicroserviceAssignment):
     schedule_id: uuid.UUID = Field(..., alias="scheduleId", description="Parent Schedule ID")
 
 
+class AssignmentUpdate(BaseModel):
+    """Schema for updating an existing assignment (all fields optional)."""
+    timeslot_id: Optional[int] = Field(None, alias="timeslotId", description="Timeslot ID")
+    group_id: Optional[uuid.UUID] = Field(None, alias="groupId", description="Group ID")
+    subgroup_no: Optional[int] = Field(None, alias="subgroupNo", description="Subgroup number")
+    course_id: Optional[uuid.UUID] = Field(None, alias="courseId", description="Course ID")
+    teacher_id: Optional[uuid.UUID] = Field(None, alias="teacherId", description="Teacher ID")
+    room_id: Optional[uuid.UUID] = Field(None, alias="roomId", description="Room ID (null for remote)")
+    course_type: Optional[Literal["lec", "prac", "lab"]] = Field(None, alias="courseType", description="Type of class (lec, prac, lab)")
+    
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class AssignmentResponse(AssignmentCreate):
     """Schema for returning a full assignment from the API."""
     assignment_id: uuid.UUID = Field(..., alias="assignmentId", description="Assignment ID")
