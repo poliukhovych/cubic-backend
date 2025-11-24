@@ -95,3 +95,10 @@ class AssignmentService:
         
         logger.info(f"Знайдено призначень: {len(assignments)}")
         return assignments
+
+    async def get_assignments_by_schedule_id(self, schedule_id: UUID) -> List[Assignment]:
+        """Gets all assignments for a specific schedule."""
+        logger.info(f"Отримання всіх призначень для розкладу {schedule_id}")
+        assignments = await self.repo.find_by_schedule_id(schedule_id)
+        logger.info(f"Знайдено призначень: {len(assignments)}")
+        return assignments

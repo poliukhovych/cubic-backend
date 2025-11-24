@@ -26,6 +26,7 @@ class ScheduleResponse(ScheduleBase):
     """Schema for returning schedule data from the API."""
     schedule_id: uuid.UUID = Field(..., alias="scheduleId", description="Schedule ID")
     created_at: datetime = Field(..., alias="createdAt", description="Creation timestamp")
+    is_active: bool = Field(..., alias="isActive", description="Whether the schedule is active")
 
     class Config:
         """Pydantic config to allow ORM model mapping."""
@@ -43,3 +44,9 @@ class ScheduleGenerationResponse(BaseModel):
     """Response model for the schedule generation endpoint."""
     message: str = Field(..., description="Summary message")
     schedule: List[AssignmentResponse] = Field(..., description="List of generated assignments")
+
+
+class ScheduleDetailsResponse(ScheduleResponse):
+    """Schema for detailed schedule information including assignments."""
+    assignments: List[AssignmentResponse] = Field(..., description="List of assignments in this schedule")
+    assignments_count: int = Field(..., alias="assignmentsCount", description="Total number of assignments")

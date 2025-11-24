@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 from typing import List, Dict, Any
+from uuid import UUID
 
 # Services for 'catalog' data
 from .group_service import GroupService
@@ -27,7 +28,7 @@ from .schedule_service import ScheduleService
 from .assignment_service import AssignmentService
 
 # Import response schemas
-from app.schemas.assignment import AssignmentResponse
+from app.schemas.assignment import AssignmentResponse, AssignmentCreate
 
 SCHEDULER_URL = os.getenv("SCHEDULER_URL", "http://localhost:8000")
 
@@ -686,6 +687,229 @@ class ScheduleGenerationService:
                         logger.error(f"   {error_details}")
                         raise Exception(f"Scheduling job {job_id} failed: {error_details}")
 
+                except httpx.RequestError as e:
+                    logger.warning(f" Помилка при перевірці статусу (спроба #{poll_count}): {e}")
+                    logger.warning("   Повторна спроба через 3 секунди...")
+                    continue
+
+    async def _convert_assignments_to_base_format(
+            self, assignments: List[Any]
+    ) -> List[Dict[str, Any]]:
+        """
+        Converts DB Assignment models to BaseAssignment format for reoptimize API.
+        
+        BaseAssignment format:
+        {
+            "courseId": "uuid_2_weekly",  # includes countPerWeek and frequency
+            "teacherId": "uuid",
+            "roomId": "uuid",
+            "timeslot": "mon.all.1",  # string format
+            "groupIds": ["uuid1", "uuid2"]  # array
+        }
+        """
+        from uuid import UUID as UUIDType
+        
+        timeslot_map = await self.timeslot_service.get_id_map()
+        
+        base_assignments = []
+        # Group assignments by course, teacher, room, timeslot to combine groupIds
+        assignments_by_key = {}
+        
+        for assignment in assignments:
+            # Get timeslot string
+            timeslot_str = timeslot_map.get(assignment.timeslot_id)
+            if not timeslot_str:
+                logger.warning(f"Не знайдено timeslot string для timeslot_id={assignment.timeslot_id}")
+                continue
+            
+            # Create a unique key for grouping
+            key = (
+                str(assignment.course_id),
+                str(assignment.teacher_id),
+                str(assignment.room_id) if assignment.room_id else None,
+                timeslot_str
+            )
+            
+            if key not in assignments_by_key:
+                assignments_by_key[key] = []
+            assignments_by_key[key].append(str(assignment.group_id))
+        
+        # Convert grouped assignments to BaseAssignment format
+        for key, group_ids in assignments_by_key.items():
+            course_id, teacher_id, room_id, timeslot_str = key
+            
+            # For reoptimize, we need to reconstruct the courseId format
+            # Since we don't have countPerWeek and frequency in Assignment,
+            # we'll use the original course_id (the microservice will handle it)
+            base_assignment = {
+                "courseId": course_id,
+                "teacherId": teacher_id,
+                "roomId": room_id if room_id else "",
+                "timeslot": timeslot_str,
+                "groupIds": group_ids
+            }
+            base_assignments.append(base_assignment)
+        
+        return base_assignments
+
+    async def reoptimize_schedule(
+            self,
+            schedule_id: UUID,
+            policy: Dict[str, Any],
+            params: Dict[str, Any],
+            existing_assignments: List[Any]
+    ) -> List[AssignmentResponse]:
+        """
+        Reoptimizes an existing schedule using the reoptimize endpoint.
+        
+        Args:
+            schedule_id: UUID of the schedule to reoptimize
+            policy: Policy parameters for optimization
+            params: Optimization parameters
+            existing_assignments: List of current Assignment models
+        """
+        logger.info("=" * 80)
+        logger.info("=== ПОЧАТОК ОПТИМІЗАЦІЇ РОЗКЛАДУ ===")
+        logger.info("=" * 80)
+        logger.info(f" Schedule ID: {schedule_id}")
+        logger.info(f" Параметри оптимізації:")
+        logger.info(f"   - policy: {json.dumps(policy, ensure_ascii=False)}")
+        logger.info(f"   - params: {json.dumps(params, ensure_ascii=False)}")
+        logger.info(f"   - Існуючих призначень: {len(existing_assignments)}")
+        
+        # Format data for scheduler
+        logger.info("\n Формування даних для мікросервісу...")
+        instance_data = await self._format_data_for_scheduler()
+        
+        # Convert existing assignments to base format
+        logger.info("\n Конвертація існуючих призначень...")
+        base_assignments = await self._convert_assignments_to_base_format(existing_assignments)
+        logger.info(f" Конвертовано {len(base_assignments)} базових призначень")
+        
+        payload = {
+            "instance": {
+                **instance_data,
+                "policy": policy
+            },
+            "params": params,
+            "base": base_assignments,
+            "masks": []  # No masks by default
+        }
+        
+        logger.info("\n" + "=" * 80)
+        logger.info("=== ВІДПРАВКА ДАНИХ НА МІКРОСЕРВІС (REOPTIMIZE) ===")
+        logger.info("=" * 80)
+        logger.info(f" URL мікросервісу: {self.scheduler_url}/v1/reoptimize")
+        
+        async with httpx.AsyncClient() as client:
+            try:
+                logger.info("\n Відправка запиту на мікросервіс...")
+                response = await client.post(
+                    f"{self.scheduler_url}/v1/reoptimize", json=payload, timeout=20.0
+                )
+                response.raise_for_status()
+                job_id = response.json()["jobId"]
+                logger.info(f"Завдання оптимізації створено успішно! Job ID: {job_id}")
+            except (httpx.RequestError, httpx.HTTPStatusError) as e:
+                logger.error(f" Помилка при створенні завдання оптимізації: {e}")
+                logger.error(f"   URL: {self.scheduler_url}/v1/reoptimize")
+                if hasattr(e, 'response') and e.response:
+                    logger.error(f"   Response status: {e.response.status_code}")
+                    logger.error(f"   Response body: {e.response.text}")
+                raise Exception(f"Failed to start reoptimization job: {e}")
+            
+            # Poll for results (same as generate_and_save_schedule)
+            logger.info(f"\n⏳ Очікування виконання завдання {job_id}...")
+            poll_count = 0
+            while True:
+                await asyncio.sleep(3)
+                poll_count += 1
+                logger.debug(f"   Спроба #{poll_count}: перевірка статусу завдання...")
+                
+                try:
+                    result_response = await client.get(
+                        f"{self.scheduler_url}/v1/jobs/{job_id}/result", timeout=10.0
+                    )
+                    
+                    if result_response.status_code == 200:
+                        logger.info(f"\nЗавдання виконано після {poll_count} спроб!")
+                        result_json = result_response.json()
+                        assignments_data = result_json.get("assignments", [])
+                        
+                        logger.info("\n" + "=" * 80)
+                        logger.info("=== ОТРИМАНО ВІДПОВІДЬ З МІКРОСЕРВІСУ ===")
+                        logger.info("=" * 80)
+                        
+                        if not assignments_data:
+                            logger.warning("Мікросервіс повернув 0 призначень після оптимізації")
+                            return []
+                        
+                        logger.info(f"Отримано {len(assignments_data)} призначень після оптимізації")
+                        
+                        # Delete old assignments and save new ones
+                        logger.info("\n" + "=" * 80)
+                        logger.info("=== ОНОВЛЕННЯ ПРИЗНАЧЕНЬ В БД ===")
+                        logger.info("=" * 80)
+                        
+                        # Delete old assignments
+                        from app.repositories.assignment_repository import AssignmentRepository
+                        from app.db.session import async_session_maker
+                        async with async_session_maker() as session:
+                            assignment_repo = AssignmentRepository(session)
+                            deleted_count = await assignment_repo.delete_by_schedule_id(schedule_id)
+                            logger.info(f"Видалено старих призначень: {deleted_count}")
+                            await session.commit()
+                        
+                        # Convert and save new assignments
+                        logger.info(f"\nКонвертація та збереження {len(assignments_data)} нових призначень...")
+                        converted_assignments = await self._convert_assignments_from_microservice(assignments_data)
+                        logger.info(f" Конвертовано {len(converted_assignments)} призначень для збереження")
+                        
+                        # Save new assignments
+                        async with async_session_maker() as session:
+                            assignment_repo = AssignmentRepository(session)
+                            # Ensure schedule_id is set for all assignments
+                            assignment_dicts = []
+                            for a in converted_assignments:
+                                assignment_dict = dict(a)
+                                assignment_dict["schedule_id"] = schedule_id
+                                assignment_dicts.append(assignment_dict)
+                            
+                            saved_assignments = await assignment_repo.bulk_create(
+                                [AssignmentCreate(**a) for a in assignment_dicts]
+                            )
+                            await session.commit()
+                            logger.info(f"Збережено {len(saved_assignments)} нових призначень в БД")
+                        
+                        # Format response
+                        rooms_resp = await self.room_service.get_all_rooms()
+                        room_id_to_name = {room.room_id: room.name for room in rooms_resp.rooms}
+                        
+                        assignment_responses = []
+                        for assignment in saved_assignments:
+                            assignment_response = AssignmentResponse.model_validate(assignment)
+                            if assignment.room_id and assignment.room_id in room_id_to_name:
+                                assignment_response.room_name = room_id_to_name[assignment.room_id]
+                            else:
+                                assignment_response.room_name = None
+                            assignment_responses.append(assignment_response)
+                        
+                        logger.info("\n" + "=" * 80)
+                        logger.info("=== ОПТИМІЗАЦІЯ РОЗКЛАДУ ЗАВЕРШЕНА ===")
+                        logger.info("=" * 80)
+                        logger.info(f" Підсумок:")
+                        logger.info(f"   - Schedule ID: {schedule_id}")
+                        logger.info(f"   - Оновлено призначень: {len(assignment_responses)}")
+                        logger.info("=" * 80 + "\n")
+                        
+                        return assignment_responses
+                    
+                    elif result_response.status_code == 500:
+                        error_details = result_response.json().get("detail", "Unknown error")
+                        logger.error(f"\n Завдання {job_id} завершилось з помилкою:")
+                        logger.error(f"   {error_details}")
+                        raise Exception(f"Reoptimization job {job_id} failed: {error_details}")
+                
                 except httpx.RequestError as e:
                     logger.warning(f" Помилка при перевірці статусу (спроба #{poll_count}): {e}")
                     logger.warning("   Повторна спроба через 3 секунди...")

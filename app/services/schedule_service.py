@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from typing import List
 from app.repositories.schedule_repository import ScheduleRepository
 from app.db.models.scheduling.schedule import Schedule
 from uuid import UUID
@@ -46,3 +47,18 @@ class ScheduleService:
         if not schedule:
             raise NoResultFound("No schedules found")
         return schedule
+
+    async def get_all_schedules(self) -> List[Schedule]:
+        """Get all schedules."""
+        return await self.repo.find_all()
+
+    async def activate_schedule(self, schedule_id: UUID) -> Schedule:
+        """Activate a schedule and deactivate all others."""
+        schedule = await self.repo.activate_schedule(schedule_id)
+        if not schedule:
+            raise NoResultFound("Schedule not found")
+        return schedule
+
+    async def delete_schedule(self, schedule_id: UUID) -> bool:
+        """Delete a schedule."""
+        return await self.repo.delete(schedule_id)
