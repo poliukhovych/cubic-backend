@@ -24,11 +24,10 @@ class RegistrationRequestOut(BaseModel):
     @computed_field(alias="fullName")
     @property
     def full_name(self) -> str:
-        """Computed field that combines first_name, patronymic, and last_name."""
-        parts = [self.first_name]
+        """Computed field that combines last_name, first_name, and patronymic (Ukrainian order)."""
+        parts = [self.last_name, self.first_name]
         if self.patronymic:
             parts.append(self.patronymic)
-        parts.append(self.last_name)
         return " ".join(parts)
 
     class Config:

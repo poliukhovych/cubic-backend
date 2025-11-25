@@ -17,6 +17,10 @@ from app.repositories.lesson_repository import LessonRepository
 from app.repositories.availability_repository import AvailabilityRepository
 from app.repositories.constraint_repository import ConstraintRepository
 from app.repositories.students_repository import StudentRepository
+from app.repositories.grade_repository import GradeRepository
+from app.repositories.homework_repository import HomeworkRepository
+from app.repositories.attendance_repository import AttendanceRepository
+from app.repositories.homework_submission_repository import HomeworkSubmissionRepository
 
 # --- Import Services ---
 from app.services.group_service import GroupService
@@ -34,6 +38,9 @@ from app.services.group_course_service import GroupCourseService
 from app.services.teacher_course_service import TeacherCourseService
 from app.services.subgroup_constraint_service import SubgroupConstraintService
 from app.services.schedule_generation_service import ScheduleGenerationService
+from app.services.grade_service import GradeService
+from app.services.homework_service import HomeworkService
+from app.services.attendance_service import AttendanceService
 
 
 async def get_session():
@@ -109,6 +116,26 @@ def get_student_repository(
     session: AsyncSession = Depends(get_session)
 ) -> StudentRepository:
     return StudentRepository(session)
+
+def get_grade_repository(
+    session: AsyncSession = Depends(get_session)
+) -> GradeRepository:
+    return GradeRepository(session)
+
+def get_homework_repository(
+    session: AsyncSession = Depends(get_session)
+) -> HomeworkRepository:
+    return HomeworkRepository(session)
+
+def get_attendance_repository(
+    session: AsyncSession = Depends(get_session)
+) -> AttendanceRepository:
+    return AttendanceRepository(session)
+
+def get_homework_submission_repository(
+    session: AsyncSession = Depends(get_session)
+) -> HomeworkSubmissionRepository:
+    return HomeworkSubmissionRepository(session)
 
 
 # --- Service Providers ---
@@ -186,6 +213,23 @@ def get_group_unavailability_service(
     timeslot_service: TimeslotService = Depends(get_timeslot_service)
 ) -> GroupUnavailabilityService:
     return GroupUnavailabilityService(repo, timeslot_service)
+
+def get_grade_service(
+    repo: GradeRepository = Depends(get_grade_repository)
+) -> GradeService:
+    return GradeService(repo)
+
+def get_homework_service(
+    repo: HomeworkRepository = Depends(get_homework_repository),
+    submission_repo: HomeworkSubmissionRepository = Depends(get_homework_submission_repository)
+) -> HomeworkService:
+    return HomeworkService(repo, submission_repo)
+
+def get_attendance_service(
+    repo: AttendanceRepository = Depends(get_attendance_repository),
+    session: AsyncSession = Depends(get_session)
+) -> AttendanceService:
+    return AttendanceService(repo, session)
 
 # --- Orchestrator Provider ---
 

@@ -117,37 +117,108 @@ async def google_auth(
         if user.role is None and auth_request.role:
             user.role = auth_request.role
             
-            # Create corresponding Teacher or Student record if needed
+            # Try to find and link existing Teacher/Student record, or create new one
             if auth_request.role == UserRole.TEACHER:
-                # Check if teacher record exists
+                # Check if teacher record exists with this user_id
                 stmt = select(Teacher).where(Teacher.user_id == user.user_id)
                 result = await db.execute(stmt)
-                if not result.scalar_one_or_none():
-                    teacher = Teacher(
-                        user_id=user.user_id,
-                        first_name=user.first_name,
-                        last_name=user.last_name,
-                        patronymic="",
-                        status="pending"
+                teacher = result.scalar_one_or_none()
+                
+                if not teacher:
+                    # Try to find existing teacher by name
+                    stmt = select(Teacher).where(
+                        (Teacher.user_id.is_(None)) &
+                        (Teacher.first_name == user.first_name) &
+                        (Teacher.last_name == user.last_name)
                     )
-                    db.add(teacher)
+                    result = await db.execute(stmt)
+                    teacher = result.scalar_one_or_none()
+                    
+                    if teacher:
+                        # Link existing teacher to this user
+                        teacher.user_id = user.user_id
+                        logger.info(f"Auto-linked teacher {teacher.teacher_id} to user {user.user_id}")
+                    else:
+                        # Create new teacher record
+                        teacher = Teacher(
+                            user_id=user.user_id,
+                            first_name=user.first_name,
+                            last_name=user.last_name,
+                            patronymic=user.patronymic or "",
+                            status="pending"
+                        )
+                        db.add(teacher)
             
             elif auth_request.role == UserRole.STUDENT:
-                # Check if student record exists
+                # Check if student record exists with this user_id
                 stmt = select(Student).where(Student.user_id == user.user_id)
                 result = await db.execute(stmt)
-                if not result.scalar_one_or_none():
-                    student = Student(
-                        user_id=user.user_id,
-                        first_name=user.first_name,
-                        last_name=user.last_name,
-                        patronymic=None,
-                        status="pending"
+                student = result.scalar_one_or_none()
+                
+                if not student:
+                    # Try to find existing student by name
+                    stmt = select(Student).where(
+                        (Student.user_id.is_(None)) &
+                        (Student.first_name == user.first_name) &
+                        (Student.last_name == user.last_name)
                     )
-                    db.add(student)
+                    result = await db.execute(stmt)
+                    student = result.scalar_one_or_none()
+                    
+                    if student:
+                        # Link existing student to this user
+                        student.user_id = user.user_id
+                        logger.info(f"Auto-linked student {student.student_id} to user {user.user_id}")
+                    else:
+                        # Create new student record
+                        student = Student(
+                            user_id=user.user_id,
+                            first_name=user.first_name,
+                            last_name=user.last_name,
+                            patronymic=user.patronymic,
+                            status="pending"
+                        )
+                        db.add(student)
             
             await db.commit()
             await db.refresh(user)
+        
+        # Auto-link existing user with Teacher/Student if has role but not linked
+        elif user.role == UserRole.TEACHER:
+            stmt = select(Teacher).where(Teacher.user_id == user.user_id)
+            result = await db.execute(stmt)
+            if not result.scalar_one_or_none():
+                # Try to find existing teacher by name
+                stmt = select(Teacher).where(
+                    (Teacher.user_id.is_(None)) &
+                    (Teacher.first_name == user.first_name) &
+                    (Teacher.last_name == user.last_name)
+                )
+                result = await db.execute(stmt)
+                teacher = result.scalar_one_or_none()
+                
+                if teacher:
+                    teacher.user_id = user.user_id
+                    await db.commit()
+                    logger.info(f"Auto-linked teacher {teacher.teacher_id} to user {user.user_id}")
+        
+        elif user.role == UserRole.STUDENT:
+            stmt = select(Student).where(Student.user_id == user.user_id)
+            result = await db.execute(stmt)
+            if not result.scalar_one_or_none():
+                # Try to find existing student by name
+                stmt = select(Student).where(
+                    (Student.user_id.is_(None)) &
+                    (Student.first_name == user.first_name) &
+                    (Student.last_name == user.last_name)
+                )
+                result = await db.execute(stmt)
+                student = result.scalar_one_or_none()
+                
+                if student:
+                    student.user_id = user.user_id
+                    await db.commit()
+                    logger.info(f"Auto-linked student {student.student_id} to user {user.user_id}")
     
     # Generate JWT token
     access_token = create_access_token(
@@ -267,26 +338,58 @@ async def select_role(
     # Update user role
     current_user.role = role_request.role
     
-    # Create corresponding Teacher or Student record
+    # Try to find and link existing Teacher/Student record, or create new one
     if role_request.role == UserRole.TEACHER:
-        teacher = Teacher(
-            user_id=current_user.user_id,
-            first_name=current_user.first_name,
-            last_name=current_user.last_name,
-            patronymic="",
-            status="pending"
+        # Check if there's an existing teacher with matching name but no user_id
+        stmt = select(Teacher).where(
+            (Teacher.user_id.is_(None)) &
+            (Teacher.first_name == current_user.first_name) &
+            (Teacher.last_name == current_user.last_name)
         )
-        db.add(teacher)
+        result = await db.execute(stmt)
+        teacher = result.scalar_one_or_none()
+        
+        if teacher:
+            # Link existing teacher to this user
+            teacher.user_id = current_user.user_id
+            logger.info(f"Linked existing teacher {teacher.teacher_id} to user {current_user.user_id}")
+        else:
+            # Create new teacher record
+            teacher = Teacher(
+                user_id=current_user.user_id,
+                first_name=current_user.first_name,
+                last_name=current_user.last_name,
+                patronymic=current_user.patronymic or "",
+                status="pending"
+            )
+            db.add(teacher)
+            logger.info(f"Created new teacher record for user {current_user.user_id}")
     
     elif role_request.role == UserRole.STUDENT:
-        student = Student(
-            user_id=current_user.user_id,
-            first_name=current_user.first_name,
-            last_name=current_user.last_name,
-            patronymic=None,
-            status="pending"
+        # Check if there's an existing student with matching name but no user_id
+        stmt = select(Student).where(
+            (Student.user_id.is_(None)) &
+            (Student.first_name == current_user.first_name) &
+            (Student.last_name == current_user.last_name)
         )
-        db.add(student)
+        result = await db.execute(stmt)
+        student = result.scalar_one_or_none()
+        
+        if student:
+            # Link existing student to this user
+            student.user_id = current_user.user_id
+            logger.info(f"Linked existing student {student.student_id} to user {current_user.user_id}")
+        else:
+            # Create new student record
+            student = Student(
+                user_id=current_user.user_id,
+                first_name=current_user.first_name,
+                last_name=current_user.last_name,
+                patronymic=current_user.patronymic,
+                status="pending"
+            )
+            db.add(student)
+            logger.info(f"Created new student record for user {current_user.user_id}")
     
     await db.commit()
     await db.refresh(current_user)
@@ -434,6 +537,75 @@ async def google_oauth_callback(
             user=UserResponse.model_validate(user),
             needs_role_selection=True
         )
+    
+    # Auto-link user with existing Teacher/Student record if not linked yet
+    if user.role == UserRole.TEACHER:
+        # Check if teacher record exists with this user_id
+        stmt = select(Teacher).where(Teacher.user_id == user.user_id)
+        result = await db.execute(stmt)
+        teacher = result.scalar_one_or_none()
+        
+        if not teacher:
+            # Try to find existing teacher by name
+            stmt = select(Teacher).where(
+                (Teacher.user_id.is_(None)) &
+                (Teacher.first_name == user.first_name) &
+                (Teacher.last_name == user.last_name)
+            )
+            result = await db.execute(stmt)
+            teacher = result.scalar_one_or_none()
+            
+            if teacher:
+                # Link existing teacher to this user
+                teacher.user_id = user.user_id
+                logger.info(f"Auto-linked teacher {teacher.teacher_id} to user {user.user_id}")
+            else:
+                # Create new teacher record if none exists
+                teacher = Teacher(
+                    user_id=user.user_id,
+                    first_name=user.first_name,
+                    last_name=user.last_name,
+                    patronymic=user.patronymic or "",
+                    status="active"
+                )
+                db.add(teacher)
+                logger.info(f"Created new teacher record for user {user.user_id}")
+            
+            await db.commit()
+    
+    elif user.role == UserRole.STUDENT:
+        # Check if student record exists with this user_id
+        stmt = select(Student).where(Student.user_id == user.user_id)
+        result = await db.execute(stmt)
+        student = result.scalar_one_or_none()
+        
+        if not student:
+            # Try to find existing student by name
+            stmt = select(Student).where(
+                (Student.user_id.is_(None)) &
+                (Student.first_name == user.first_name) &
+                (Student.last_name == user.last_name)
+            )
+            result = await db.execute(stmt)
+            student = result.scalar_one_or_none()
+            
+            if student:
+                # Link existing student to this user
+                student.user_id = user.user_id
+                logger.info(f"Auto-linked student {student.student_id} to user {user.user_id}")
+            else:
+                # Create new student record if none exists
+                student = Student(
+                    user_id=user.user_id,
+                    first_name=user.first_name,
+                    last_name=user.last_name,
+                    patronymic=user.patronymic,
+                    status="active"
+                )
+                db.add(student)
+                logger.info(f"Created new student record for user {user.user_id}")
+            
+            await db.commit()
     
     # User exists with role - normal login
     access_token = create_access_token(
@@ -815,6 +987,75 @@ async def login_with_google(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found. Please register first."
         )
+    
+    # Auto-link user with existing Teacher/Student record if not linked yet
+    if user.role == UserRole.TEACHER:
+        # Check if teacher record exists with this user_id
+        stmt = select(Teacher).where(Teacher.user_id == user.user_id)
+        result = await db.execute(stmt)
+        teacher = result.scalar_one_or_none()
+        
+        if not teacher:
+            # Try to find existing teacher by email (first_name + last_name match)
+            stmt = select(Teacher).where(
+                (Teacher.user_id.is_(None)) &
+                (Teacher.first_name == user.first_name) &
+                (Teacher.last_name == user.last_name)
+            )
+            result = await db.execute(stmt)
+            teacher = result.scalar_one_or_none()
+            
+            if teacher:
+                # Link existing teacher to this user
+                teacher.user_id = user.user_id
+                logger.info(f"Auto-linked teacher {teacher.teacher_id} to user {user.user_id}")
+            else:
+                # Create new teacher record if none exists
+                teacher = Teacher(
+                    user_id=user.user_id,
+                    first_name=user.first_name,
+                    last_name=user.last_name,
+                    patronymic=user.patronymic or "",
+                    status="active"
+                )
+                db.add(teacher)
+                logger.info(f"Created new teacher record for user {user.user_id}")
+            
+            await db.commit()
+    
+    elif user.role == UserRole.STUDENT:
+        # Check if student record exists with this user_id
+        stmt = select(Student).where(Student.user_id == user.user_id)
+        result = await db.execute(stmt)
+        student = result.scalar_one_or_none()
+        
+        if not student:
+            # Try to find existing student by email (first_name + last_name match)
+            stmt = select(Student).where(
+                (Student.user_id.is_(None)) &
+                (Student.first_name == user.first_name) &
+                (Student.last_name == user.last_name)
+            )
+            result = await db.execute(stmt)
+            student = result.scalar_one_or_none()
+            
+            if student:
+                # Link existing student to this user
+                student.user_id = user.user_id
+                logger.info(f"Auto-linked student {student.student_id} to user {user.user_id}")
+            else:
+                # Create new student record if none exists
+                student = Student(
+                    user_id=user.user_id,
+                    first_name=user.first_name,
+                    last_name=user.last_name,
+                    patronymic=user.patronymic,
+                    status="active"
+                )
+                db.add(student)
+                logger.info(f"Created new student record for user {user.user_id}")
+            
+            await db.commit()
     
     # Generate JWT token
     access_token = create_access_token(

@@ -1,13 +1,24 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from typing import Dict, Any
+from typing import Dict, Any, List
 from uuid import UUID
+import logging
 
-from app.core.deps import get_schedule_generation_service, get_schedule_service
-from app.schemas.schedule import ScheduleGenerationResponse, ScheduleResponse
+from app.core.deps import get_schedule_generation_service, get_schedule_service, get_assignment_service, get_room_service
+from app.schemas.schedule import (
+    ScheduleGenerationResponse, 
+    ScheduleResponse, 
+    ScheduleListResponse,
+    ScheduleDetailsResponse
+)
+from app.schemas.assignment import AssignmentResponse, AssignmentCreate, AssignmentUpdate
 from app.services.schedule_generation_service import ScheduleGenerationService
 from app.services.schedule_service import ScheduleService
+from app.services.assignment_service import AssignmentService
+from app.services.room_service import RoomService
 from sqlalchemy.exc import NoResultFound
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/schedules"
@@ -70,6 +81,169 @@ async def get_latest_schedule(
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 
+@router.get("/", response_model=ScheduleListResponse)
+async def get_all_schedules(
+    service: ScheduleService = Depends(get_schedule_service)
+):
+    """
+    Отримує список всіх розкладів.
+    
+    Повертає всі розклади, відсортовані за датою створення (найновіші спочатку).
+    """
+    try:
+        schedules = await service.get_all_schedules()
+        schedule_responses = [ScheduleResponse.model_validate(s) for s in schedules]
+        return ScheduleListResponse(
+            schedules=schedule_responses,
+            total=len(schedule_responses)
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+@router.get("/{schedule_id}/details", response_model=ScheduleDetailsResponse)
+async def get_schedule_details(
+    schedule_id: UUID,
+    schedule_service: ScheduleService = Depends(get_schedule_service),
+    assignment_service: AssignmentService = Depends(get_assignment_service)
+):
+    """
+    Отримує детальну інформацію про розклад, включаючи всі призначення.
+    
+    Args:
+        schedule_id: UUID розкладу, який потрібно отримати
+    """
+    try:
+        schedule = await schedule_service.get_schedule_by_id(schedule_id)
+        assignments = await assignment_service.get_assignments_by_schedule_id(schedule_id)
+        
+        assignment_responses = [AssignmentResponse.model_validate(a) for a in assignments]
+        
+        schedule_response = ScheduleResponse.model_validate(schedule)
+        return ScheduleDetailsResponse(
+            **schedule_response.model_dump(),
+            assignments=assignment_responses,
+            assignments_count=len(assignment_responses)
+        )
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail=f"Schedule with id {schedule_id} not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+@router.post("/{schedule_id}/activate", response_model=ScheduleResponse)
+async def activate_schedule(
+    schedule_id: UUID,
+    service: ScheduleService = Depends(get_schedule_service)
+):
+    """
+    Активує розклад та деактивує всі інші.
+    
+    Тільки один розклад може бути активним одночасно.
+    При активації нового розкладу всі інші автоматично деактивуються.
+    
+    Args:
+        schedule_id: UUID розкладу, який потрібно активувати
+    """
+    try:
+        schedule = await service.activate_schedule(schedule_id)
+        return ScheduleResponse.model_validate(schedule)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail=f"Schedule with id {schedule_id} not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+@router.delete("/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_schedule(
+    schedule_id: UUID,
+    schedule_service: ScheduleService = Depends(get_schedule_service),
+    assignment_service: AssignmentService = Depends(get_assignment_service)
+):
+    """
+    Видаляє розклад та всі його призначення.
+    
+    Args:
+        schedule_id: UUID розкладу, який потрібно видалити
+    """
+    try:
+        # Перевіряємо, чи існує розклад
+        await schedule_service.get_schedule_by_id(schedule_id)
+        
+        # Видаляємо всі призначення для цього розкладу
+        from app.repositories.assignment_repository import AssignmentRepository
+        from app.db.session import async_session_maker
+        async with async_session_maker() as session:
+            assignment_repo = AssignmentRepository(session)
+            deleted_count = await assignment_repo.delete_by_schedule_id(schedule_id)
+            logger.info(f"Видалено призначень: {deleted_count}")
+            await session.commit()
+        
+        # Видаляємо розклад
+        deleted = await schedule_service.delete_schedule(schedule_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail=f"Schedule with id {schedule_id} not found")
+        
+        return None
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail=f"Schedule with id {schedule_id} not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+@router.post("/{schedule_id}/optimize", response_model=ScheduleGenerationResponse)
+async def optimize_schedule(
+    schedule_id: UUID,
+    request: ScheduleGenerationRequest,
+    schedule_service: ScheduleService = Depends(get_schedule_service),
+    generation_service: ScheduleGenerationService = Depends(get_schedule_generation_service),
+    assignment_service: AssignmentService = Depends(get_assignment_service)
+):
+    """
+    Оптимізує існуючий розклад.
+    
+    Використовує поточні призначення як базові та застосовує оптимізацію
+    з новими параметрами та політиками.
+    
+    Args:
+        schedule_id: UUID розкладу, який потрібно оптимізувати
+        request: Параметри оптимізації (policy, params)
+    """
+    try:
+        # Перевіряємо, чи існує розклад
+        schedule = await schedule_service.get_schedule_by_id(schedule_id)
+        
+        # Отримуємо поточні призначення
+        assignments = await assignment_service.get_assignments_by_schedule_id(schedule_id)
+        
+        if not assignments:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Schedule {schedule_id} has no assignments to optimize"
+            )
+        
+        # Викликаємо метод оптимізації
+        saved_assignments = await generation_service.reoptimize_schedule(
+            schedule_id=schedule_id,
+            policy=request.policy,
+            params=request.params,
+            existing_assignments=assignments
+        )
+        
+        return {
+            "message": f"Successfully optimized schedule with {len(saved_assignments)} assignments.",
+            "schedule": saved_assignments
+        }
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail=f"Schedule with id {schedule_id} not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
 @router.get("/{schedule_id}", response_model=ScheduleResponse)
 async def get_schedule_by_id(
     schedule_id: UUID,
@@ -87,4 +261,153 @@ async def get_schedule_by_id(
     except NoResultFound:
         raise HTTPException(status_code=404, detail=f"Schedule with id {schedule_id} not found")
     except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+# ==================== Assignment Endpoints ====================
+
+@router.post("/{schedule_id}/assignments", response_model=AssignmentResponse, status_code=status.HTTP_201_CREATED)
+async def create_assignment(
+    schedule_id: UUID,
+    assignment_data: AssignmentCreate,
+    schedule_service: ScheduleService = Depends(get_schedule_service),
+    assignment_service: AssignmentService = Depends(get_assignment_service),
+    room_service: RoomService = Depends(get_room_service)
+):
+    """
+    Створює нове призначення (assignment) для розкладу.
+    
+    Args:
+        schedule_id: UUID розкладу
+        assignment_data: Дані для створення призначення
+    
+    Примітка: scheduleId в assignment_data має співпадати з schedule_id в URL.
+    """
+    try:
+        # Перевіряємо, чи існує розклад
+        await schedule_service.get_schedule_by_id(schedule_id)
+        
+        # Використовуємо schedule_id з URL (ігноруємо scheduleId з тіла, якщо він є)
+        assignment_dict = assignment_data.model_dump(by_alias=True, exclude={"scheduleId"})
+        
+        # Створюємо призначення
+        assignment = await assignment_service.create_assignment(
+            schedule_id=schedule_id,
+            assignment_data=assignment_dict
+        )
+        
+        # Формуємо відповідь з roomName
+        assignment_response = AssignmentResponse.model_validate(assignment)
+        
+        # Додаємо roomName якщо потрібно
+        if assignment.room_id:
+            room = await room_service.get_room_by_id(assignment.room_id)
+            if room:
+                assignment_response.room_name = room.name
+        
+        return assignment_response
+        
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail=f"Schedule with id {schedule_id} not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating assignment: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+@router.put("/{schedule_id}/assignments/{assignment_id}", response_model=AssignmentResponse)
+async def update_assignment(
+    schedule_id: UUID,
+    assignment_id: UUID,
+    assignment_data: AssignmentUpdate,
+    schedule_service: ScheduleService = Depends(get_schedule_service),
+    assignment_service: AssignmentService = Depends(get_assignment_service),
+    room_service: RoomService = Depends(get_room_service)
+):
+    """
+    Оновлює існуюче призначення (assignment).
+    
+    Args:
+        schedule_id: UUID розкладу
+        assignment_id: UUID призначення для оновлення
+        assignment_data: Дані для оновлення (всі поля опціональні)
+    """
+    try:
+        # Перевіряємо, чи існує розклад
+        await schedule_service.get_schedule_by_id(schedule_id)
+        
+        # Перевіряємо, чи призначення існує та належить цьому розкладу
+        assignment = await assignment_service.get_assignment_by_id(assignment_id)
+        if assignment.schedule_id != schedule_id:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Assignment {assignment_id} does not belong to schedule {schedule_id}"
+            )
+        
+        # Оновлюємо призначення
+        updated_assignment = await assignment_service.update_assignment(
+            assignment_id=assignment_id,
+            assignment_data=assignment_data.model_dump(exclude_unset=True, by_alias=True)
+        )
+        
+        # Формуємо відповідь з roomName
+        assignment_response = AssignmentResponse.model_validate(updated_assignment)
+        
+        # Додаємо roomName якщо потрібно
+        if updated_assignment.room_id:
+            room = await room_service.get_room_by_id(updated_assignment.room_id)
+            if room:
+                assignment_response.room_name = room.name
+        
+        return assignment_response
+        
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail=f"Assignment with id {assignment_id} not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating assignment: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+@router.delete("/{schedule_id}/assignments/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_assignment(
+    schedule_id: UUID,
+    assignment_id: UUID,
+    schedule_service: ScheduleService = Depends(get_schedule_service),
+    assignment_service: AssignmentService = Depends(get_assignment_service)
+):
+    """
+    Видаляє призначення (assignment) з розкладу.
+    
+    Args:
+        schedule_id: UUID розкладу
+        assignment_id: UUID призначення для видалення
+    """
+    try:
+        # Перевіряємо, чи існує розклад
+        await schedule_service.get_schedule_by_id(schedule_id)
+        
+        # Перевіряємо, чи призначення існує та належить цьому розкладу
+        assignment = await assignment_service.get_assignment_by_id(assignment_id)
+        if assignment.schedule_id != schedule_id:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Assignment {assignment_id} does not belong to schedule {schedule_id}"
+            )
+        
+        # Видаляємо призначення
+        deleted = await assignment_service.delete_assignment(assignment_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail=f"Assignment with id {assignment_id} not found")
+        
+        return None
+        
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail=f"Assignment with id {assignment_id} not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting assignment: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")

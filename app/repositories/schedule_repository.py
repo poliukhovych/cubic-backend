@@ -34,10 +34,12 @@ class ScheduleRepository:
         await self._session.refresh(obj)
         return obj
 
-    async def update(self, schedule_id: UUID, label: Union[str, None, object] = UNSET) -> Optional[Schedule]:
+    async def update(self, schedule_id: UUID, label: Union[str, None, object] = UNSET, is_active: Union[bool, None, object] = UNSET) -> Optional[Schedule]:
         update_data = {}
         if label is not UNSET:
             update_data["label"] = label
+        if is_active is not UNSET:
+            update_data["is_active"] = is_active
 
         if not update_data:
             return await self.find_by_id(schedule_id)
@@ -55,6 +57,15 @@ class ScheduleRepository:
             await self._session.refresh(updated_schedule)
 
         return updated_schedule
+
+    async def activate_schedule(self, schedule_id: UUID) -> Optional[Schedule]:
+        """Activate a schedule and deactivate all others."""
+        # First, deactivate all schedules
+        await self._session.execute(
+            update(Schedule).values(is_active=False)
+        )
+        # Then activate the specified schedule
+        return await self.update(schedule_id, is_active=True)
 
     async def delete(self, schedule_id: UUID) -> bool:
         stmt = delete(Schedule).where(Schedule.schedule_id == schedule_id).returning(Schedule.schedule_id)
