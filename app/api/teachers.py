@@ -34,20 +34,6 @@ async def get_all_teachers(
     return await teacher_service.get_all_teachers()
 
 
-@router.get("/{teacher_id}", response_model=TeacherResponse)
-async def get_teacher_by_id(
-    teacher_id: uuid.UUID,
-    teacher_service: TeacherService = Depends(get_teacher_service)
-) -> TeacherResponse:
-    teacher = await teacher_service.get_teacher_by_id(teacher_id)
-    if not teacher:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail=f"Teacher with id {teacher_id} not found"
-        )
-    return teacher
-
-
 @router.get("/user/{user_id}", response_model=TeacherResponse)
 async def get_teacher_by_user_id(
     user_id: uuid.UUID,
@@ -58,6 +44,20 @@ async def get_teacher_by_user_id(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail=f"Teacher with user_id {user_id} not found"
+        )
+    return teacher
+
+
+@router.get("/{teacher_id}", response_model=TeacherResponse)
+async def get_teacher_by_id(
+    teacher_id: uuid.UUID,
+    teacher_service: TeacherService = Depends(get_teacher_service)
+) -> TeacherResponse:
+    teacher = await teacher_service.get_teacher_by_id(teacher_id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail=f"Teacher with id {teacher_id} not found"
         )
     return teacher
 

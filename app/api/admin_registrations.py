@@ -9,6 +9,7 @@ from app.core.security import get_current_admin
 from app.db.models.people.user import User, UserRole
 from app.db.models.people.teacher import Teacher
 from app.db.models.people.student import Student
+from app.db.models.joins.student_group import StudentGroup
 from app.db.models.people.registration_request import RegistrationRequest, RegistrationStatus
 from app.db.models.catalog.group import Group
 from app.schemas.registration import (
@@ -205,10 +206,36 @@ async def approve_registration_request(
                 status="active",
             )
             db.add(student)
+            await db.flush()
+            await db.refresh(student)
+            
+            # Create StudentGroup record if group_id is provided
+            if reg.group_id:
+                student_group = StudentGroup(
+                    student_id=student.student_id,
+                    group_id=reg.group_id,
+                )
+                db.add(student_group)
         else:
             # Update group_id if it was set in registration request
             if reg.group_id:
                 student.group_id = reg.group_id
+                
+                # Check if StudentGroup record exists
+                sg_stmt = select(StudentGroup).where(StudentGroup.student_id == student.student_id)
+                sg_res = await db.execute(sg_stmt)
+                sg = sg_res.scalar_one_or_none()
+                
+                if sg is not None:
+                    # Update existing record
+                    sg.group_id = reg.group_id
+                else:
+                    # Create new record
+                    student_group = StudentGroup(
+                        student_id=student.student_id,
+                        group_id=reg.group_id,
+                    )
+                    db.add(student_group)
             student.status = "active"
 
     # Update request status

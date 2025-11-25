@@ -83,6 +83,16 @@ class StudentRepository:
         self._session.add(obj)
         await self._session.flush()
         await self._session.refresh(obj)
+        
+        # Create StudentGroup record if group_id is provided
+        if group_id is not None:
+            student_group = StudentGroup(
+                student_id=obj.student_id,
+                group_id=group_id,
+            )
+            self._session.add(student_group)
+            await self._session.flush()
+        
         return obj
 
     async def update(
@@ -127,6 +137,28 @@ class StudentRepository:
             return None
 
         await self._session.refresh(obj)
+        
+        # Update StudentGroup record if group_id is provided
+        if group_id is not None:
+            # Check if StudentGroup record exists
+            existing_sg = await self._session.execute(
+                select(StudentGroup).where(StudentGroup.student_id == student_id)
+            )
+            sg = existing_sg.scalar_one_or_none()
+            
+            if sg is not None:
+                # Update existing record
+                sg.group_id = group_id
+            else:
+                # Create new record
+                student_group = StudentGroup(
+                    student_id=student_id,
+                    group_id=group_id,
+                )
+                self._session.add(student_group)
+            
+            await self._session.flush()
+        
         return obj
 
     async def delete(self, student_id: UUID) -> bool:

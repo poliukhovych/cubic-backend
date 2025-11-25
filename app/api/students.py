@@ -26,6 +26,23 @@ from datetime import datetime, date
 router = APIRouter()
 
 
+@router.get("/user/{user_id}", response_model=StudentOut)
+async def get_student_by_user_id(
+    user_id: uuid.UUID,
+    student_repository: StudentRepository = Depends(get_student_repository)
+) -> StudentOut:
+    """
+    Отримує студента за user_id.
+    """
+    student = await student_repository.find_by_user_id(user_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Student with user_id {user_id} not found"
+        )
+    return StudentOut.model_validate(student)
+
+
 @router.get("/{student_id}/schedule", response_model=List[AssignmentResponse])
 async def get_student_schedule(
     student_id: uuid.UUID,
