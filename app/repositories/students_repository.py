@@ -130,6 +130,9 @@ class StudentRepository:
         return obj
 
     async def delete(self, student_id: UUID) -> bool:
+        await self._session.execute(
+            delete(StudentGroup).where(StudentGroup.student_id == student_id)
+        )
         stmt = (
             delete(Student)
             .where(Student.student_id == student_id)
