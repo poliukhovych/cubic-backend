@@ -46,6 +46,8 @@ async def generate_new_schedule(
             "schedule": saved_assignments
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         # Обробити специфічні помилки сервісу
         print(f"Error during schedule generation: {e}")
