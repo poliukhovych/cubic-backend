@@ -2,7 +2,7 @@ import logging
 import json
 from app.repositories.assignment_repository import AssignmentRepository
 from app.db.models.scheduling.assignment import Assignment
-from app.schemas.assignment import AssignmentCreate
+from app.schemas.assignment import AssignmentCreate, AssignmentDetails
 from typing import List, Dict, Any, Optional
 from uuid import UUID
 
@@ -16,6 +16,18 @@ class AssignmentService:
 
     def __init__(self, repo: AssignmentRepository):
         self.repo = repo
+
+    async def get_schedule_details(self, schedule_id: UUID) -> List[AssignmentDetails]:
+        rows = await self.repo.find_by_schedule_id_with_names(schedule_id)
+        details = []
+        for assignment, last, first, patronymic, group_name, course_name, room_name in rows:
+            item = AssignmentDetails.model_validate(assignment)
+            item.teacher_name = " ".join(p for p in (last, first, patronymic) if p)
+            item.group_name = group_name
+            item.course_name = course_name
+            item.room_name = room_name
+            details.append(item)
+        return details
 
     async def create_assignments(
             self, schedule_id: UUID, assignments_data: List[Dict[str, Any]]

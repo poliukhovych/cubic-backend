@@ -1,16 +1,24 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from typing import Dict, Any
 from uuid import UUID
 
-from app.core.deps import get_schedule_generation_service, get_schedule_service
-from app.schemas.schedule import ScheduleGenerationResponse, ScheduleResponse
+from app.core.deps import get_schedule_generation_service, get_schedule_service, get_assignment_service
+from app.core.security import get_current_user, get_current_admin
+from app.schemas.schedule import (
+    ScheduleGenerationResponse,
+    ScheduleResponse,
+    ScheduleListResponse,
+    ScheduleDetailsResponse,
+)
 from app.services.schedule_generation_service import ScheduleGenerationService
 from app.services.schedule_service import ScheduleService
+from app.services.assignment_service import AssignmentService
 from sqlalchemy.exc import NoResultFound
 
 router = APIRouter(
-    prefix="/schedules"
+    prefix="/schedules",
+    dependencies=[Depends(get_current_user)],
 )
 
 
@@ -20,7 +28,7 @@ class ScheduleGenerationRequest(BaseModel):
     schedule_label: str = "Generated Schedule"
 
 
-@router.post("/generate", response_model=ScheduleGenerationResponse)
+@router.post("/generate", response_model=ScheduleGenerationResponse, dependencies=[Depends(get_current_admin)])
 async def generate_new_schedule(
     request: ScheduleGenerationRequest,
     service: ScheduleGenerationService = Depends(get_schedule_generation_service)
@@ -46,10 +54,40 @@ async def generate_new_schedule(
             "schedule": saved_assignments
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         # Обробити специфічні помилки сервісу
         print(f"Error during schedule generation: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
+
+
+@router.get("/", response_model=ScheduleListResponse)
+async def list_schedules(
+    service: ScheduleService = Depends(get_schedule_service)
+):
+    """Усі розклади, найновіші першими."""
+    schedules = await service.get_all_schedules()
+    return ScheduleListResponse(
+        schedules=[ScheduleResponse.model_validate(s) for s in schedules],
+        total=len(schedules),
+    )
+
+
+@router.get("/active", response_model=ScheduleDetailsResponse)
+async def get_active_schedule(
+    service: ScheduleService = Depends(get_schedule_service),
+    assignment_service: AssignmentService = Depends(get_assignment_service),
+):
+    """Активний розклад (або останній, якщо активного немає) з усіма заняттями."""
+    try:
+        schedule = await service.get_current_schedule()
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="No schedules found")
+    return ScheduleDetailsResponse(
+        schedule=ScheduleResponse.model_validate(schedule),
+        assignments=await assignment_service.get_schedule_details(schedule.schedule_id),
+    )
 
 
 @router.get("/latest", response_model=ScheduleResponse)
@@ -88,3 +126,45 @@ async def get_schedule_by_id(
         raise HTTPException(status_code=404, detail=f"Schedule with id {schedule_id} not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+@router.get("/{schedule_id}/details", response_model=ScheduleDetailsResponse)
+async def get_schedule_details(
+    schedule_id: UUID,
+    service: ScheduleService = Depends(get_schedule_service),
+    assignment_service: AssignmentService = Depends(get_assignment_service),
+):
+    """Розклад за ID з усіма заняттями."""
+    try:
+        schedule = await service.get_schedule_by_id(schedule_id)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail=f"Schedule with id {schedule_id} not found")
+    return ScheduleDetailsResponse(
+        schedule=ScheduleResponse.model_validate(schedule),
+        assignments=await assignment_service.get_schedule_details(schedule_id),
+    )
+
+
+@router.patch("/{schedule_id}/activate", response_model=ScheduleResponse, dependencies=[Depends(get_current_admin)])
+async def activate_schedule(
+    schedule_id: UUID,
+    service: ScheduleService = Depends(get_schedule_service),
+):
+    """Робить розклад активним (саме його бачать студенти й викладачі)."""
+    try:
+        schedule = await service.activate_schedule(schedule_id)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail=f"Schedule with id {schedule_id} not found")
+    return ScheduleResponse.model_validate(schedule)
+
+
+@router.delete("/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(get_current_admin)])
+async def delete_schedule(
+    schedule_id: UUID,
+    service: ScheduleService = Depends(get_schedule_service),
+):
+    """Видаляє розклад разом із заняттями. Активний розклад видалити не можна (409)."""
+    try:
+        await service.delete_schedule(schedule_id)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail=f"Schedule with id {schedule_id} not found")

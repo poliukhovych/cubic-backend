@@ -28,6 +28,22 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     async with engine.begin() as conn:
         await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "citext";'))
         await conn.run_sync(Base.metadata.create_all)
+        # create_all doesn't alter existing tables, so add is_active to pre-existing DBs here
+        await conn.execute(text(
+            "ALTER TABLE schedules ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT false"
+        ))
+        await conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_schedules_single_active ON schedules (is_active) WHERE is_active"
+        ))
+        await conn.execute(text("""
+            UPDATE schedules SET is_active = true
+            WHERE schedule_id = (
+                SELECT s.schedule_id FROM schedules s
+                WHERE EXISTS (SELECT 1 FROM assignments a WHERE a.schedule_id = s.schedule_id)
+                ORDER BY s.created_at DESC LIMIT 1
+            )
+            AND NOT EXISTS (SELECT 1 FROM schedules WHERE is_active)
+        """))
 
     # Initialize schedule data
     try:

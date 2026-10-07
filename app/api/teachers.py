@@ -166,7 +166,7 @@ async def get_teacher_schedule(
     # Якщо schedule_id не вказано, отримуємо останній розклад
     if schedule_id is None:
         try:
-            latest_schedule = await schedule_service.get_latest_schedule()
+            latest_schedule = await schedule_service.get_current_schedule()
             schedule_id = latest_schedule.schedule_id
         except Exception:
             raise HTTPException(

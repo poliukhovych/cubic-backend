@@ -1,6 +1,8 @@
 import logging
+from typing import List
 from app.repositories.schedule_repository import ScheduleRepository
 from app.db.models.scheduling.schedule import Schedule
+from app.core.exceptions import ConflictError
 from uuid import UUID
 from sqlalchemy.exc import NoResultFound
 
@@ -31,3 +33,23 @@ class ScheduleService:
         if not schedule:
             raise NoResultFound("No schedules found")
         return schedule
+
+    async def get_current_schedule(self) -> Schedule:
+        """The schedule students and teachers see: the active one, or the latest if none is active."""
+        schedule = await self.repo.find_active() or await self.repo.find_latest()
+        if not schedule:
+            raise NoResultFound("No schedules found")
+        return schedule
+
+    async def get_all_schedules(self) -> List[Schedule]:
+        return await self.repo.find_all()
+
+    async def activate_schedule(self, schedule_id: UUID) -> Schedule:
+        await self.get_schedule_by_id(schedule_id)
+        return await self.repo.set_active(schedule_id)
+
+    async def delete_schedule(self, schedule_id: UUID) -> None:
+        schedule = await self.get_schedule_by_id(schedule_id)
+        if schedule.is_active:
+            raise ConflictError("Не можна видалити активний розклад. Спочатку зробіть активним інший.")
+        await self.repo.delete(schedule_id)
