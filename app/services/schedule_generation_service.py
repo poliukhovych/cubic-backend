@@ -28,6 +28,7 @@ from .assignment_service import AssignmentService
 
 # Import response schemas
 from app.schemas.assignment import AssignmentResponse
+from app.core.exceptions import ValidationError
 
 SCHEDULER_URL = os.getenv("SCHEDULER_URL", "http://localhost:8000")
 
@@ -625,6 +626,17 @@ class ScheduleGenerationService:
                             logger.info(f"\nУспішно створено {len(assignments_data)} призначень!")
                             logger.info(f"   Приклад першого призначення:")
                             logger.info(f"   {json.dumps(assignments_data[0], ensure_ascii=False, indent=4, default=str)}")
+
+                        # An empty schedule would become the latest one and hide the previous good schedule
+                        if status == "infeasible":
+                            raise ValidationError(
+                                "Не вдалося скласти розклад: обмеження несумісні (INFEASIBLE). "
+                                "Попередній розклад залишено без змін."
+                            )
+                        if not assignments_data:
+                            raise ValidationError(
+                                "Солвер повернув 0 призначень. Попередній розклад залишено без змін."
+                            )
 
                         logger.info("\n" + "=" * 80)
                         logger.info("=== ЗБЕРЕЖЕННЯ РЕЗУЛЬТАТУ В БД ===")
