@@ -28,7 +28,10 @@ from .assignment_service import AssignmentService
 
 # Import response schemas
 from app.schemas.assignment import AssignmentResponse
-from app.core.exceptions import ValidationError
+from app.core.exceptions import ValidationError, ExternalServiceError
+
+SOLVER_MAX_WAIT_SEC = 600
+SOLVER_MAX_POLL_ERRORS = 10
 
 SCHEDULER_URL = os.getenv("SCHEDULER_URL", "http://localhost:8000")
 
@@ -566,7 +569,15 @@ class ScheduleGenerationService:
 
             logger.info(f"\n⏳ Очікування виконання завдання {job_id}...")
             poll_count = 0
+            poll_errors = 0
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + SOLVER_MAX_WAIT_SEC
             while True:
+                if loop.time() > deadline:
+                    raise ExternalServiceError(
+                        f"Солвер не повернув результат за {SOLVER_MAX_WAIT_SEC} с (job {job_id}).",
+                        service_name="scheduler",
+                    )
                 await asyncio.sleep(3)
                 poll_count += 1
                 logger.debug(f"   Спроба #{poll_count}: перевірка статусу завдання...")
@@ -575,6 +586,7 @@ class ScheduleGenerationService:
                     result_response = await client.get(
                         f"{self.scheduler_url}/v1/jobs/{job_id}/result", timeout=10.0
                     )
+                    poll_errors = 0
 
                     if result_response.status_code == 200:
                         logger.info(f"\nЗавдання виконано після {poll_count} спроб!")
@@ -693,13 +705,31 @@ class ScheduleGenerationService:
                         logger.info(f"Сформовано {len(assignment_responses)} відповідей з roomName")
                         return assignment_responses
 
+                    elif result_response.status_code == 202:
+                        continue
+
                     elif result_response.status_code == 500:
-                        error_details = result_response.json().get("detail", "Unknown error")
+                        try:
+                            error_details = result_response.json().get("detail", "Unknown error")
+                        except ValueError:
+                            error_details = result_response.text or "Unknown error"
                         logger.error(f"\n Завдання {job_id} завершилось з помилкою:")
                         logger.error(f"   {error_details}")
                         raise Exception(f"Scheduling job {job_id} failed: {error_details}")
 
+                    else:
+                        raise ExternalServiceError(
+                            f"Солвер відповів {result_response.status_code} для job {job_id}.",
+                            service_name="scheduler",
+                        )
+
                 except httpx.RequestError as e:
+                    poll_errors += 1
+                    if poll_errors >= SOLVER_MAX_POLL_ERRORS:
+                        raise ExternalServiceError(
+                            f"Солвер недоступний: {poll_errors} помилок підряд (job {job_id}).",
+                            service_name="scheduler",
+                        )
                     logger.warning(f" Помилка при перевірці статусу (спроба #{poll_count}): {e}")
                     logger.warning("   Повторна спроба через 3 секунди...")
                     continue
