@@ -9,13 +9,14 @@ from app.services.assignment_service import AssignmentService
 from app.services.schedule_service import ScheduleService
 from app.repositories.students_repository import StudentRepository
 from app.core.deps import get_teacher_service, get_course_service, get_group_service, get_assignment_service, get_schedule_service, get_student_repository
+from app.core.security import get_current_user, get_current_admin
 from app.schemas.teacher import TeacherCreate, TeacherUpdate, TeacherResponse, TeacherListResponse
 from app.schemas.assignment import AssignmentResponse
 from app.schemas.student import StudentOut
 from app.core.security import get_current_admin
 from app.db.models.people.user import User
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 @router.get("/", response_model=TeacherListResponse)
@@ -56,9 +57,9 @@ async def get_teacher_by_user_id(
 @router.get("/{teacher_id}/courses", response_model=List[dict])
 async def get_teacher_courses(
     teacher_id: uuid.UUID,
-    course_service: CourseService = Depends(get_course_service)
+    course_service: CourseService = Depends(get_course_service),
+    teacher_service: TeacherService = Depends(get_teacher_service)
 ) -> List[dict]:
-    teacher_service = TeacherService(course_service.repo._session)
     teacher = await teacher_service.get_teacher_by_id(teacher_id)
     if not teacher:
         raise HTTPException(
@@ -73,9 +74,9 @@ async def get_teacher_courses(
 @router.get("/{teacher_id}/groups", response_model=List[dict])
 async def get_teacher_groups(
     teacher_id: uuid.UUID,
-    group_service: GroupService = Depends(get_group_service)
+    group_service: GroupService = Depends(get_group_service),
+    teacher_service: TeacherService = Depends(get_teacher_service)
 ) -> List[dict]:
-    teacher_service = TeacherService(group_service.repo._session)
     teacher = await teacher_service.get_teacher_by_id(teacher_id)
     if not teacher:
         raise HTTPException(
@@ -87,7 +88,7 @@ async def get_teacher_groups(
     return [group.model_dump() for group in groups]
 
 
-@router.post("/", response_model=TeacherResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=TeacherResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(get_current_admin)])
 async def create_teacher(
     teacher_data: TeacherCreate,
     teacher_service: TeacherService = Depends(get_teacher_service)
@@ -102,7 +103,7 @@ async def create_teacher(
         )
 
 
-@router.put("/{teacher_id}", response_model=TeacherResponse)
+@router.put("/{teacher_id}", response_model=TeacherResponse, dependencies=[Depends(get_current_admin)])
 async def update_teacher(
     teacher_id: uuid.UUID,
     teacher_data: TeacherUpdate,
@@ -117,7 +118,7 @@ async def update_teacher(
     return teacher
 
 
-@router.patch("/{teacher_id}/confirm", response_model=TeacherResponse)
+@router.patch("/{teacher_id}/confirm", response_model=TeacherResponse, dependencies=[Depends(get_current_admin)])
 async def confirm_teacher(
     teacher_id: uuid.UUID,
     teacher_service: TeacherService = Depends(get_teacher_service)
