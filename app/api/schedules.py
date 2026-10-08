@@ -14,7 +14,10 @@ from app.schemas.schedule import (
 from app.services.schedule_generation_service import ScheduleGenerationService
 from app.services.schedule_service import ScheduleService
 from app.services.assignment_service import AssignmentService
+from app.core.logging import get_logger
 from sqlalchemy.exc import NoResultFound
+
+logger = get_logger(__name__)
 
 router = APIRouter(
     prefix="/schedules",
@@ -56,10 +59,9 @@ async def generate_new_schedule(
 
     except HTTPException:
         raise
-    except Exception as e:
-        # Обробити специфічні помилки сервісу
-        print(f"Error during schedule generation: {e}")
-        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
+    except Exception:
+        logger.exception("Schedule generation failed")
+        raise HTTPException(status_code=500, detail="Schedule generation failed")
 
 
 @router.get("/", response_model=ScheduleListResponse)
@@ -104,8 +106,6 @@ async def get_latest_schedule(
         return ScheduleResponse.model_validate(schedule)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="No schedules found")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 
 @router.get("/{schedule_id}", response_model=ScheduleResponse)
@@ -124,8 +124,6 @@ async def get_schedule_by_id(
         return ScheduleResponse.model_validate(schedule)
     except NoResultFound:
         raise HTTPException(status_code=404, detail=f"Schedule with id {schedule_id} not found")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 
 @router.get("/{schedule_id}/details", response_model=ScheduleDetailsResponse)
