@@ -32,9 +32,8 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
-    command: >
-      sh -c "alembic upgrade head &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    # schema is created by Base.metadata.create_all on startup (app/main.py)
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     networks:
       - cubic-network
     restart: unless-stopped
