@@ -82,12 +82,13 @@ async def google_auth(
         
         # Check if there's already a pending request
         stmt = select(RegistrationRequest).where(
-            (RegistrationRequest.google_sub == google_sub) | (RegistrationRequest.email == email)
-        )
+            (RegistrationRequest.google_sub == google_sub) | (RegistrationRequest.email == email),
+            RegistrationRequest.status == RegistrationStatus.PENDING,
+        ).limit(1)
         res = await db.execute(stmt)
-        existing_req = res.scalar_one_or_none()
+        existing_req = res.scalars().first()
         
-        if existing_req and existing_req.status == RegistrationStatus.PENDING:
+        if existing_req:
             raise HTTPException(
                 status_code=status.HTTP_202_ACCEPTED,
                 detail="Registration request already submitted and awaiting admin approval"
@@ -620,11 +621,12 @@ async def register_with_google(
 
     # If there's already a pending request for this identity/email, return pending
     stmt = select(RegistrationRequest).where(
-        (RegistrationRequest.google_sub == google_sub) | (RegistrationRequest.email == email)
-    )
+        (RegistrationRequest.google_sub == google_sub) | (RegistrationRequest.email == email),
+        RegistrationRequest.status == RegistrationStatus.PENDING,
+    ).limit(1)
     res = await db.execute(stmt)
-    existing_req = res.scalar_one_or_none()
-    if existing_req and existing_req.status == RegistrationStatus.PENDING:
+    existing_req = res.scalars().first()
+    if existing_req:
         return {
             "pending": True,
             "message": "Registration already submitted and awaiting admin approval.",
@@ -801,11 +803,12 @@ async def login_with_google(
     if not user:
         # Check for pending registration
         stmt = select(RegistrationRequest).where(
-            RegistrationRequest.google_sub == google_sub
-        )
+            RegistrationRequest.google_sub == google_sub,
+            RegistrationRequest.status == RegistrationStatus.PENDING,
+        ).limit(1)
         res = await db.execute(stmt)
-        reg = res.scalar_one_or_none()
-        if reg and reg.status == RegistrationStatus.PENDING:
+        reg = res.scalars().first()
+        if reg:
             return {
                 "pending": True,
                 "message": "Your registration is awaiting admin approval.",
