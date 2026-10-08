@@ -77,7 +77,7 @@ async def update_registration_request(
     # Load request with group
     stmt = select(RegistrationRequest, Group.name).outerjoin(
         Group, RegistrationRequest.group_id == Group.group_id
-    ).where(RegistrationRequest.request_id == request_id)
+    ).where(RegistrationRequest.request_id == request_id).with_for_update(of=RegistrationRequest)
     result = await db.execute(stmt)
     row = result.first()
     if not row:
@@ -138,10 +138,10 @@ async def approve_registration_request(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_admin),
 ):
-    # Load request with group
+    # Row lock: a double click must not create the user/profile twice
     stmt = select(RegistrationRequest, Group.name).outerjoin(
         Group, RegistrationRequest.group_id == Group.group_id
-    ).where(RegistrationRequest.request_id == request_id)
+    ).where(RegistrationRequest.request_id == request_id).with_for_update(of=RegistrationRequest)
     result = await db.execute(stmt)
     row = result.first()
     if not row:
@@ -256,7 +256,7 @@ async def reject_registration_request(
     # Load request with group
     stmt = select(RegistrationRequest, Group.name).outerjoin(
         Group, RegistrationRequest.group_id == Group.group_id
-    ).where(RegistrationRequest.request_id == request_id)
+    ).where(RegistrationRequest.request_id == request_id).with_for_update(of=RegistrationRequest)
     result = await db.execute(stmt)
     row = result.first()
     if not row:
