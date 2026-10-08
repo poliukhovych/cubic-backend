@@ -2,12 +2,15 @@ from typing import Optional
 import uuid
 
 from app.repositories.teacher_repository import TeacherRepository
+from app.repositories.user_repository import UserRepository
+from app.core.exceptions import ConflictError
 from app.schemas.teacher import TeacherCreate, TeacherUpdate, TeacherResponse, TeacherListResponse
 
 
 class TeacherService:
-    def __init__(self, repo: TeacherRepository):
+    def __init__(self, repo: TeacherRepository, user_repo: Optional[UserRepository] = None):
         self._repository = repo
+        self._user_repository = user_repo
 
     async def get_all_teachers(self) -> TeacherListResponse:
         teachers = await self._repository.find_all()
@@ -55,7 +58,18 @@ class TeacherService:
         return None
 
     async def delete_teacher(self, teacher_id: uuid.UUID) -> bool:
-        return await self._repository.delete(teacher_id)
+        teacher = await self._repository.find_by_id(teacher_id)
+        if not teacher:
+            return False
+        if await self._repository.has_assignments(teacher_id):
+            raise ConflictError(
+                "Викладач є в збережених розкладах. Спочатку видаліть або перегенеруйте ці розклади."
+            )
+        user_id = teacher.user_id
+        deleted = await self._repository.delete(teacher_id)
+        if deleted and user_id and self._user_repository:
+            await self._user_repository.delete_account(user_id)
+        return deleted
 
     async def activate_teacher(self, teacher_id: uuid.UUID) -> Optional[TeacherResponse]:
         teacher = await self._repository.activate_teacher(teacher_id)

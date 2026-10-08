@@ -12,6 +12,8 @@ from app.core.deps import get_teacher_service, get_course_service, get_group_ser
 from app.schemas.teacher import TeacherCreate, TeacherUpdate, TeacherResponse, TeacherListResponse
 from app.schemas.assignment import AssignmentResponse
 from app.schemas.student import StudentOut
+from app.core.security import get_current_admin
+from app.db.models.people.user import User
 
 router = APIRouter()
 
@@ -132,7 +134,8 @@ async def confirm_teacher(
 @router.delete("/{teacher_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_teacher(
     teacher_id: uuid.UUID,
-    teacher_service: TeacherService = Depends(get_teacher_service)
+    teacher_service: TeacherService = Depends(get_teacher_service),
+    _: User = Depends(get_current_admin),
 ):
     success = await teacher_service.delete_teacher(teacher_id)
     if not success:

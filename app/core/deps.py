@@ -119,9 +119,10 @@ def get_group_service(
     return GroupService(repo)
 
 def get_teacher_service(
-    repo: TeacherRepository = Depends(get_teacher_repository)
+    repo: TeacherRepository = Depends(get_teacher_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
 ) -> TeacherService:
-    return TeacherService(repo)
+    return TeacherService(repo, user_repo)
 
 def get_user_service(
     repo: UserRepository = Depends(get_user_repository)

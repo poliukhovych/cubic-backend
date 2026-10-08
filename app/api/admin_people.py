@@ -18,6 +18,7 @@ from app.schemas.student import StudentCreate, StudentUpdate, StudentOut
 from app.schemas.teacher import TeacherResponse
 from app.repositories.students_repository import StudentRepository
 from app.repositories.teacher_repository import TeacherRepository
+from app.repositories.user_repository import UserRepository
 from app.utils.unset import UNSET
 import uuid
 
@@ -219,6 +220,8 @@ async def delete_student(
         )
     
     deleted = await student_repo.delete(student_id)
+    if deleted and existing.user_id:
+        await UserRepository(db).delete_account(existing.user_id)
     await db.commit()
     
     if not deleted:
