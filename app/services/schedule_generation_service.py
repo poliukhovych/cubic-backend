@@ -657,6 +657,7 @@ class ScheduleGenerationService:
                                 assignments_data=converted_assignments
                             )
                             logger.info(f"Збережено {len(saved_assignments)} призначень в БД")
+                            await self.schedule_service.activate_schedule(new_schedule.schedule_id)
                         else:
                             logger.warning("  Немає призначень для збереження")
                             saved_assignments = []

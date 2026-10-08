@@ -5,6 +5,10 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.scheduling.assignment import Assignment
+from app.db.models.people.teacher import Teacher
+from app.db.models.catalog.group import Group
+from app.db.models.catalog.course import Course
+from app.db.models.catalog.room import Room
 from app.schemas.assignment import AssignmentCreate
 from app.utils.unset import UNSET
 
@@ -36,6 +40,28 @@ class AssignmentRepository:
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def find_by_schedule_id_with_names(self, schedule_id: UUID):
+        """Assignments of a schedule joined with teacher/group/course/room names."""
+        stmt = (
+            select(
+                Assignment,
+                Teacher.last_name,
+                Teacher.first_name,
+                Teacher.patronymic,
+                Group.name,
+                Course.name,
+                Room.name,
+            )
+            .join(Teacher, Teacher.teacher_id == Assignment.teacher_id)
+            .join(Group, Group.group_id == Assignment.group_id)
+            .join(Course, Course.course_id == Assignment.course_id)
+            .outerjoin(Room, Room.room_id == Assignment.room_id)
+            .where(Assignment.schedule_id == schedule_id)
+            .order_by(Assignment.timeslot_id)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.all())
 
     async def find_by_schedule_and_group(
             self,

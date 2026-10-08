@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Union
 from pydantic import BaseModel, Field
 
-from app.schemas.assignment import AssignmentResponse
+from app.schemas.assignment import AssignmentResponse, AssignmentDetails
 from app.utils.unset import UNSET 
 
 
@@ -26,6 +26,7 @@ class ScheduleResponse(ScheduleBase):
     """Schema for returning schedule data from the API."""
     schedule_id: uuid.UUID = Field(..., alias="scheduleId", description="Schedule ID")
     created_at: datetime = Field(..., alias="createdAt", description="Creation timestamp")
+    is_active: bool = Field(False, alias="isActive", description="Whether students and teachers see this schedule")
 
     class Config:
         """Pydantic config to allow ORM model mapping."""
@@ -37,6 +38,11 @@ class ScheduleListResponse(BaseModel):
     """Schema for returning a paginated list of schedules."""
     schedules: List[ScheduleResponse] = Field(..., description="List of schedules")
     total: int = Field(..., description="Total number of schedules")
+
+
+class ScheduleDetailsResponse(BaseModel):
+    schedule: ScheduleResponse
+    assignments: List[AssignmentDetails]
 
 
 class ScheduleGenerationResponse(BaseModel):
