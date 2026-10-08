@@ -100,6 +100,26 @@ class CourseRepository:
         stmt = select(TeacherCourse.teacher_id).where(TeacherCourse.course_id == course_id)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_relation_ids_for_courses(
+        self, course_ids: List[UUID]
+    ) -> tuple[dict[UUID, List[UUID]], dict[UUID, List[UUID]]]:
+        """Group and teacher IDs for many courses in two queries: ({course_id: group_ids}, {course_id: teacher_ids})."""
+        group_ids: dict[UUID, List[UUID]] = {cid: [] for cid in course_ids}
+        teacher_ids: dict[UUID, List[UUID]] = {cid: [] for cid in course_ids}
+        if not course_ids:
+            return group_ids, teacher_ids
+        rows = await self._session.execute(
+            select(GroupCourse.course_id, GroupCourse.group_id).where(GroupCourse.course_id.in_(course_ids))
+        )
+        for cid, gid in rows:
+            group_ids[cid].append(gid)
+        rows = await self._session.execute(
+            select(TeacherCourse.course_id, TeacherCourse.teacher_id).where(TeacherCourse.course_id.in_(course_ids))
+        )
+        for cid, tid in rows:
+            teacher_ids[cid].append(tid)
+        return group_ids, teacher_ids
     
     async def create_group_course_links(self, course_id: UUID, group_ids: List[UUID]):
         """Create GroupCourse links for a course."""
