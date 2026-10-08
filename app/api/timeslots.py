@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends
 from app.services.timeslot_service import TimeslotService
 from app.core.deps import get_timeslot_service
+from app.core.security import get_current_user
 from app.schemas.timeslot import TimeslotResponse, TimeslotListResponse
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 @router.get("/", response_model=TimeslotListResponse)

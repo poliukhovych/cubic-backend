@@ -4,9 +4,10 @@ import uuid
 
 from app.services.user_service import UserService
 from app.core.deps import get_user_service
+from app.core.security import get_current_admin
 from app.schemas.user import UserResponse, UserListResponse
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_admin)])
 
 
 @router.get("/", response_model=UserListResponse)

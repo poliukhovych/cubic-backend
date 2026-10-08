@@ -1,6 +1,8 @@
 """
 Authentication API endpoints
 """
+import hmac
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -188,10 +190,9 @@ async def admin_login(
             detail="Admin login is not configured on the server"
         )
 
-    if (
-        login_request.username != settings.ADMIN_USERNAME
-        or login_request.password != settings.ADMIN_PASSWORD
-    ):
+    user_ok = hmac.compare_digest(login_request.username.encode(), settings.ADMIN_USERNAME.encode())
+    pass_ok = hmac.compare_digest(login_request.password.encode(), settings.ADMIN_PASSWORD.encode())
+    if not (user_ok and pass_ok):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid admin credentials"
