@@ -516,8 +516,14 @@ class ScheduleGenerationService:
             elif any(ts in groups.get(g, {}).get("unavailable", []) or f"{day}.all.{n}" in groups.get(g, {}).get("unavailable", [])
                      for g in course["groupIds"]):
                 problems.append(f"{where}: група недоступна у цей час")
-            elif room["capacity"] < sum(groups[g]["size"] for g in course["groupIds"] if g in groups):
-                problems.append(f"{where}: аудиторія {room['name']} замала")
+            elif room["capacity"] < (students := sum(groups[g]["size"] for g in course["groupIds"] if g in groups)):
+                stream = f"потік із {len(course['groupIds'])} груп, " if len(course["groupIds"]) > 1 else ""
+                biggest = max(r["capacity"] for r in rooms.values())
+                problems.append(
+                    f"{where}: аудиторія {room['name']} замала ({stream}{students} студентів, місць {room['capacity']}"
+                    + (f"; найбільша аудиторія — {biggest}, тож курс не вміститься ніде" if biggest < students else "")
+                    + ")"
+                )
             else:
                 key = (course["id"], room["id"], ts)
                 if key not in seen:  # a stream course is pinned once for all its groups
