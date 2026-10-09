@@ -645,6 +645,11 @@ class ScheduleGenerationService:
                                 "Не вдалося скласти розклад: обмеження несумісні (INFEASIBLE). "
                                 "Попередній розклад залишено без змін."
                             )
+                        if status == "timeout":
+                            raise ValidationError(
+                                f"Солвер не встиг знайти розклад за {params.get('timeLimitSec')} с. "
+                                "Збільште ліміт часу. Попередній розклад залишено без змін."
+                            )
                         if not assignments_data:
                             raise ValidationError(
                                 "Солвер повернув 0 призначень. Попередній розклад залишено без змін."
