@@ -165,6 +165,37 @@ async def replace_schedule_assignments(
     )
 
 
+@router.post("/{schedule_id}/reoptimize", response_model=ScheduleGenerationResponse, dependencies=[Depends(get_current_admin)])
+async def reoptimize_schedule(
+    schedule_id: UUID,
+    request: ScheduleGenerationRequest,
+    service: ScheduleService = Depends(get_schedule_service),
+    assignment_service: AssignmentService = Depends(get_assignment_service),
+    generation_service: ScheduleGenerationService = Depends(get_schedule_generation_service),
+):
+    """Новий розклад на основі цього: закріплені (pinned) пари лишаються на місці, решта перераховується."""
+    try:
+        await service.get_schedule_by_id(schedule_id)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail=f"Schedule with id {schedule_id} not found")
+    pinned = [a for a in await assignment_service.repo.find_by_schedule_id(schedule_id) if a.pinned]
+    try:
+        saved = await generation_service.generate_and_save_schedule(
+            policy=request.policy,
+            params=request.params,
+            schedule_label=request.schedule_label,
+            pinned=pinned,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
+    return {
+        "message": f"Reoptimized: {len(saved)} assignments, {len(pinned)} pinned kept.",
+        "schedule": saved,
+    }
+
+
 @router.patch("/{schedule_id}/activate", response_model=ScheduleResponse, dependencies=[Depends(get_current_admin)])
 async def activate_schedule(
     schedule_id: UUID,

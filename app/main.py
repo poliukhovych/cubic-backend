@@ -33,6 +33,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
             "ALTER TABLE schedules ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT false"
         ))
         await conn.execute(text(
+            "ALTER TABLE assignments ADD COLUMN IF NOT EXISTS pinned boolean NOT NULL DEFAULT false"
+        ))
+        await conn.execute(text(
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_schedules_single_active ON schedules (is_active) WHERE is_active"
         ))
         await conn.execute(text("""

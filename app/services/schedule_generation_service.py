@@ -3,7 +3,7 @@ import os
 import asyncio
 import json
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 # Services for 'catalog' data
 from .group_service import GroupService
@@ -478,15 +478,67 @@ class ScheduleGenerationService:
         
         return converted
 
+    async def _pinned_to_solver_base(
+            self, pinned: List[Any], instance_data: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Pinned DB lessons -> solver `base`. Refuses (422) pins the solver could never keep, with readable reasons."""
+        ts_names = {v: k for k, v in (await self.timeslot_service.get_string_to_id_map()).items()}
+        course_by_group = {}
+        for c in instance_data["courses"]:
+            for gid in c["groupIds"]:
+                course_by_group[(c["id"].split("_")[0], gid)] = c
+        teachers = {t["id"]: t for t in instance_data["teachers"]}
+        groups = {g["id"]: g for g in instance_data["groups"]}
+        rooms = {r["id"]: r for r in instance_data["rooms"]}
+        week_for = {"weekly": "all", "odd": "odd", "even": "even"}
+
+        base, problems, seen = [], [], set()
+        for a in pinned:
+            ts = ts_names.get(a.timeslot_id)
+            group_name = groups.get(str(a.group_id), {}).get("name", str(a.group_id))
+            course = course_by_group.get((str(a.course_id), str(a.group_id)))
+            where = f"{group_name}, {ts}"
+            if course is None or ts is None:
+                problems.append(f"{where}: курс більше не прив'язаний до групи або слот не існує")
+                continue
+            where = f"{group_name}, {course['name']}, {ts}"
+            room = rooms.get(str(a.room_id)) if a.room_id else None
+            day, week, n = ts.split(".")
+            available = set(teachers.get(course["teacherId"], {}).get("available", []))
+            if room is None:
+                problems.append(f"{where}: закріплена пара має мати аудиторію")
+            elif str(a.teacher_id) != course["teacherId"]:
+                problems.append(f"{where}: викладач відрізняється від викладача курсу")
+            elif week != week_for.get(course["frequency"], "all"):
+                problems.append(f"{where}: слот не відповідає частоті курсу ({course['frequency']})")
+            elif ts not in available and f"{day}.all.{n}" not in available:
+                problems.append(f"{where}: викладач недоступний у цей час")
+            elif any(ts in groups.get(g, {}).get("unavailable", []) or f"{day}.all.{n}" in groups.get(g, {}).get("unavailable", [])
+                     for g in course["groupIds"]):
+                problems.append(f"{where}: група недоступна у цей час")
+            elif room["capacity"] < sum(groups[g]["size"] for g in course["groupIds"] if g in groups):
+                problems.append(f"{where}: аудиторія {room['name']} замала")
+            else:
+                key = (course["id"], room["id"], ts)
+                if key not in seen:  # a stream course is pinned once for all its groups
+                    seen.add(key)
+                    base.append({"courseId": course["id"], "teacherId": course["teacherId"],
+                                 "roomId": room["id"], "timeslot": ts, "groupIds": course["groupIds"]})
+        if problems:
+            raise ValidationError("Закріплені пари не можна зберегти: " + "; ".join(problems[:5]))
+        return base
+
     async def generate_and_save_schedule(
             self,
             policy: Dict[str, Any],
             params: Dict[str, Any],
-            schedule_label: str
+            schedule_label: str,
+            pinned: Optional[List[Any]] = None,
     ) -> List[AssignmentResponse]:
         """
         Full process: format data, call microservice, poll, save result.
         'policy' and 'params' are provided from the frontend request.
+        With `pinned` lessons it reoptimizes: those stay in place, everything else is re-solved.
         """
         logger.info("=" * 80)
         logger.info("=== ПОЧАТОК ГЕНЕРАЦІЇ РОЗКЛАДУ ===")
@@ -506,6 +558,13 @@ class ScheduleGenerationService:
             },
             "params": params
         }
+        endpoint = "/v1/solve"
+        pinned_keys = set()
+        if pinned:
+            payload["base"] = await self._pinned_to_solver_base(pinned, instance_data)
+            payload["masks"] = []
+            endpoint = "/v1/reoptimize"
+            pinned_keys = {(str(a.course_id), str(a.group_id), a.timeslot_id) for a in pinned}
 
         logger.info("\n" + "=" * 80)
         logger.info("=== ВІДПРАВКА ДАНИХ НА МІКРОСЕРВІС ===")
@@ -551,7 +610,7 @@ class ScheduleGenerationService:
             try:
                 logger.info("\n Відправка запиту на мікросервіс...")
                 response = await client.post(
-                    f"{self.scheduler_url}/v1/solve", json=payload, timeout=20.0
+                    f"{self.scheduler_url}{endpoint}", json=payload, timeout=20.0
                 )
                 response.raise_for_status()
                 job_id = response.json()["jobId"]
@@ -650,6 +709,8 @@ class ScheduleGenerationService:
                             logger.info(f"\nКонвертація та збереження {len(assignments_data)} призначень...")
                             
                             converted_assignments = await self._convert_assignments_from_microservice(assignments_data)
+                            for a in converted_assignments:
+                                a["pinned"] = (a["courseId"], a["groupId"], a["timeslotId"]) in pinned_keys
                             logger.info(f" Конвертовано {len(converted_assignments)} призначень для збереження")
                             
                             saved_assignments = await self.assignment_service.create_assignments(
