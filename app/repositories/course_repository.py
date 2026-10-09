@@ -29,6 +29,10 @@ class CourseRepository:
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def find_by_code(self, code: str) -> Optional[Course]:
+        result = await self._session.execute(select(Course).where(Course.code == code))
+        return result.scalar_one_or_none()
+
     async def find_by_teacher_id(self, teacher_id: UUID) -> List[Course]:
         stmt = (
             select(Course)
