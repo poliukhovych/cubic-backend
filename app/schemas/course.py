@@ -13,6 +13,7 @@ class CourseBase(BaseModel):
 class CourseCreate(CourseBase):
     group_ids: list[UUID] = Field(default_factory=list, description="List of group IDs")
     teacher_ids: list[UUID] = Field(default_factory=list, description="List of teacher IDs")
+    count_per_week: int = Field(1, ge=1, le=50, description="Lessons per week for each assigned group")
 
 
 class CourseUpdate(BaseModel):
@@ -21,12 +22,14 @@ class CourseUpdate(BaseModel):
     code: Union[str, None, object] = Field(UNSET, max_length=50, description="Course code")
     group_ids: Union[list[UUID], None, object] = Field(UNSET, description="List of group IDs")
     teacher_ids: Union[list[UUID], None, object] = Field(UNSET, description="List of teacher IDs")
+    count_per_week: Optional[int] = Field(None, ge=1, le=50, description="Lessons per week for each assigned group; omit to keep")
 
 
 class CourseResponse(CourseBase):
     course_id: UUID = Field(..., alias="courseId", description="Unique course identifier")
     group_ids: list[UUID] = Field(default_factory=list, alias="groupIds", description="List of group IDs assigned to this course")
     teacher_ids: list[UUID] = Field(default_factory=list, alias="teacherIds", description="List of teacher IDs assigned to this course")
+    count_per_week: int = Field(1, alias="countPerWeek", description="Lessons per week for each assigned group")
     
     class Config:
         from_attributes = True

@@ -104,8 +104,26 @@ class CourseRepository:
         stmt = select(TeacherCourse.teacher_id).where(TeacherCourse.course_id == course_id)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_count_per_week_for_courses(self, course_ids: List[UUID]) -> dict[UUID, int]:
+        """Lessons per week by course, from its group links (1 for a course without groups)."""
+        counts: dict[UUID, int] = {cid: 1 for cid in course_ids}
+        if course_ids:
+            rows = await self._session.execute(
+                select(GroupCourse.course_id, func.max(GroupCourse.count_per_week))
+                .where(GroupCourse.course_id.in_(course_ids))
+                .group_by(GroupCourse.course_id)
+            )
+            counts.update({cid: n for cid, n in rows})
+        return counts
+
+    async def set_count_per_week(self, course_id: UUID, count_per_week: int):
+        await self._session.execute(
+            update(GroupCourse).where(GroupCourse.course_id == course_id).values(count_per_week=count_per_week)
+        )
+        await self._session.flush()
     
-    async def create_group_course_links(self, course_id: UUID, group_ids: List[UUID]):
+    async def create_group_course_links(self, course_id: UUID, group_ids: List[UUID], count_per_week: int = 1):
         """Create GroupCourse links for a course."""
         # Ensure course_id is a UUID object
         if isinstance(course_id, str):
@@ -124,7 +142,7 @@ class CourseRepository:
             # Convert to UUID if it's a string
             if isinstance(group_id, str):
                 group_id = UUID(group_id)
-            links_to_add.append(GroupCourse(group_id=group_id, course_id=course_id))
+            links_to_add.append(GroupCourse(group_id=group_id, course_id=course_id, count_per_week=count_per_week))
         
         # Add all links at once
         self._session.add_all(links_to_add)

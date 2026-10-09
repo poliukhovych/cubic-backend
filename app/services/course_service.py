@@ -18,6 +18,7 @@ class CourseService:
         
         # Build course responses with relationships
         course_responses = []
+        counts = await self.repo.get_count_per_week_for_courses([c.course_id for c in courses])
         for course in courses:
             group_ids = await self.repo.get_group_ids_for_course(course.course_id)
             teacher_ids = await self.repo.get_teacher_ids_for_course(course.course_id)
@@ -28,7 +29,8 @@ class CourseService:
                 "duration": course.duration,
                 "code": course.code,
                 "group_ids": group_ids,
-                "teacher_ids": teacher_ids
+                "teacher_ids": teacher_ids,
+                "count_per_week": counts[course.course_id],
             }
             course_responses.append(CourseResponse.model_validate(course_dict))
         
@@ -46,7 +48,8 @@ class CourseService:
                 "duration": course.duration,
                 "code": course.code,
                 "group_ids": group_ids,
-                "teacher_ids": teacher_ids
+                "teacher_ids": teacher_ids,
+                "count_per_week": (await self.repo.get_count_per_week_for_courses([course.course_id]))[course.course_id],
             }
             return CourseResponse.model_validate(course_dict)
         return None
@@ -55,6 +58,7 @@ class CourseService:
         courses = await self.repo.find_by_teacher_id(teacher_id)
         
         course_responses = []
+        counts = await self.repo.get_count_per_week_for_courses([c.course_id for c in courses])
         for course in courses:
             group_ids = await self.repo.get_group_ids_for_course(course.course_id)
             teacher_ids = await self.repo.get_teacher_ids_for_course(course.course_id)
@@ -65,7 +69,8 @@ class CourseService:
                 "duration": course.duration,
                 "code": course.code,
                 "group_ids": group_ids,
-                "teacher_ids": teacher_ids
+                "teacher_ids": teacher_ids,
+                "count_per_week": counts[course.course_id],
             }
             course_responses.append(CourseResponse.model_validate(course_dict))
         
@@ -95,7 +100,7 @@ class CourseService:
         
         # Create relationships if provided
         if course_data.group_ids:
-            await self.repo.create_group_course_links(course.course_id, course_data.group_ids)
+            await self.repo.create_group_course_links(course.course_id, course_data.group_ids, course_data.count_per_week)
         if course_data.teacher_ids:
             await self.repo.create_teacher_course_links(course.course_id, course_data.teacher_ids)
         
@@ -109,7 +114,8 @@ class CourseService:
             "duration": course.duration,
             "code": course.code,
             "group_ids": group_ids,
-            "teacher_ids": teacher_ids
+            "teacher_ids": teacher_ids,
+            "count_per_week": course_data.count_per_week,
         }
         return CourseResponse.model_validate(course_dict)
 
@@ -130,12 +136,18 @@ class CourseService:
         )
         
         if updated_course:
+            # Recreated links keep the current count unless a new one is given
+            count_per_week = course_data.count_per_week
+            if count_per_week is None:
+                count_per_week = (await self.repo.get_count_per_week_for_courses([course_id]))[course_id]
             # Update relationships if provided
             if course_data.group_ids is not UNSET:
                 if course_data.group_ids:
-                    await self.repo.create_group_course_links(updated_course.course_id, course_data.group_ids)
+                    await self.repo.create_group_course_links(updated_course.course_id, course_data.group_ids, count_per_week)
                 else:
                     await self.repo.delete_group_course_links(updated_course.course_id)
+            elif course_data.count_per_week is not None:
+                await self.repo.set_count_per_week(course_id, count_per_week)
             
             if course_data.teacher_ids is not UNSET:
                 if course_data.teacher_ids:
@@ -153,7 +165,8 @@ class CourseService:
                 "duration": updated_course.duration,
                 "code": updated_course.code,
                 "group_ids": group_ids,
-                "teacher_ids": teacher_ids
+                "teacher_ids": teacher_ids,
+                "count_per_week": count_per_week,
             }
             return CourseResponse.model_validate(course_dict)
         return None
