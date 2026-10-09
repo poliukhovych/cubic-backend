@@ -54,6 +54,17 @@ class CourseService:
         courses = await self.repo.find_by_teacher_id(teacher_id)
         return await self._to_responses(courses)
 
+    async def _clean_code(self, code, course_id: Optional[UUID] = None):
+        """Blank code -> NULL (the column is unique, so "" would clash); duplicate code -> ValueError (400)."""
+        if code is UNSET or code is None:
+            return code
+        code = code.strip() or None
+        if code:
+            existing = await self.repo.find_by_code(code)
+            if existing and existing.course_id != course_id:
+                raise ValueError(f"A course with the code '{code}' already exists.")
+        return code
+
     async def create_course(self, course_data: CourseCreate) -> CourseResponse:
         existing_course = await self.repo.find_by_name(course_data.name)
         if existing_course:
@@ -62,7 +73,7 @@ class CourseService:
         course = await self.repo.create(
             name=course_data.name,
             duration=course_data.duration,
-            code=course_data.code
+            code=await self._clean_code(course_data.code)
         )
         
         # Create relationships if provided
@@ -79,6 +90,7 @@ class CourseService:
             "course_id": course.course_id,
             "name": course.name,
             "duration": course.duration,
+            "code": course.code,
             "group_ids": group_ids,
             "teacher_ids": teacher_ids
         }
@@ -97,7 +109,7 @@ class CourseService:
             course_id=course_id,
             name=course_data.name if course_data.name is not UNSET else UNSET,
             duration=course_data.duration if course_data.duration is not UNSET else UNSET,
-            code=course_data.code if course_data.code is not UNSET else UNSET
+            code=await self._clean_code(course_data.code, course_id)
         )
         
         if updated_course:
@@ -122,6 +134,7 @@ class CourseService:
                 "course_id": updated_course.course_id,
                 "name": updated_course.name,
                 "duration": updated_course.duration,
+                "code": updated_course.code,
                 "group_ids": group_ids,
                 "teacher_ids": teacher_ids
             }
