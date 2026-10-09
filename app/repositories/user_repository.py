@@ -1,10 +1,11 @@
 from typing import List, Optional, Union
 from uuid import UUID
 
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.people.user import User, UserRole
+from app.db.models.people.registration_request import RegistrationRequest
 from app.utils.unset import UNSET
 
 
@@ -111,6 +112,21 @@ class UserRepository:
         stmt = delete(User).where(User.user_id == user_id).returning(User.user_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
+
+    async def delete_account(self, user_id: UUID) -> bool:
+        """Delete the user and their registration requests so they can register again from scratch."""
+        user = await self.find_by_id(user_id)
+        if not user:
+            return False
+        await self._session.execute(
+            delete(RegistrationRequest).where(
+                or_(
+                    RegistrationRequest.google_sub == user.google_sub,
+                    RegistrationRequest.email == user.email,
+                )
+            )
+        )
+        return await self.delete(user_id)
 
     async def exists(self, user_id: UUID) -> bool:
         stmt = select(User.user_id).where(User.user_id == user_id)

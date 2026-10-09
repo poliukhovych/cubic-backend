@@ -36,14 +36,11 @@ def get_database_url() -> str:
 def create_sync_session() -> Session:
     """Створює синхронну сесію для роботи з БД"""
     database_url = get_database_url()
-    # Конвертуємо async URL на sync URL якщо потрібно
-    if database_url.startswith("postgresql+asyncpg://"):
-        database_url = database_url.replace("postgresql+asyncpg://", "postgresql://")
-    elif database_url.startswith("postgresql://"):
-        pass  # Вже правильний формат
-    else:
-        # Якщо інший формат, спробуємо як є
-        pass
+    # Explicit driver: since SQLAlchemy 2.1 bare "postgresql://" means psycopg 3, which we don't install
+    for prefix in ("postgresql+asyncpg://", "postgresql://"):
+        if database_url.startswith(prefix):
+            database_url = "postgresql+psycopg2://" + database_url[len(prefix):]
+            break
     
     engine = create_engine(database_url)
     SessionLocal = sessionmaker(bind=engine)

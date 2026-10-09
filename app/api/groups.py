@@ -3,10 +3,11 @@ from typing import List
 from uuid import UUID
 
 from app.core.deps import get_group_service
+from app.core.security import get_current_user, get_current_admin
 from app.services.group_service import GroupService
 from app.schemas.group import GroupCreate, GroupUpdate, GroupResponse, GroupListResponse
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 @router.get("/", response_model=GroupListResponse)
@@ -35,7 +36,7 @@ async def get_groups_by_teacher_id(
     return await group_service.get_groups_by_teacher_id(teacher_id)
 
 
-@router.post("/", response_model=GroupResponse, status_code=201)
+@router.post("/", response_model=GroupResponse, status_code=201, dependencies=[Depends(get_current_admin)])
 async def create_group(
     group_data: GroupCreate,
     group_service: GroupService = Depends(get_group_service)
@@ -46,7 +47,7 @@ async def create_group(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put("/{group_id}", response_model=GroupResponse)
+@router.put("/{group_id}", response_model=GroupResponse, dependencies=[Depends(get_current_admin)])
 async def update_group(
     group_id: UUID,
     group_data: GroupUpdate,
@@ -61,7 +62,7 @@ async def update_group(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{group_id}")
+@router.delete("/{group_id}", dependencies=[Depends(get_current_admin)])
 async def delete_group(
     group_id: UUID,
     group_service: GroupService = Depends(get_group_service)

@@ -1,6 +1,8 @@
 """
 Authentication API endpoints
 """
+import hmac
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -82,12 +84,13 @@ async def google_auth(
         
         # Check if there's already a pending request
         stmt = select(RegistrationRequest).where(
-            (RegistrationRequest.google_sub == google_sub) | (RegistrationRequest.email == email)
-        )
+            (RegistrationRequest.google_sub == google_sub) | (RegistrationRequest.email == email),
+            RegistrationRequest.status == RegistrationStatus.PENDING,
+        ).limit(1)
         res = await db.execute(stmt)
-        existing_req = res.scalar_one_or_none()
+        existing_req = res.scalars().first()
         
-        if existing_req and existing_req.status == RegistrationStatus.PENDING:
+        if existing_req:
             raise HTTPException(
                 status_code=status.HTTP_202_ACCEPTED,
                 detail="Registration request already submitted and awaiting admin approval"
@@ -187,10 +190,9 @@ async def admin_login(
             detail="Admin login is not configured on the server"
         )
 
-    if (
-        login_request.username != settings.ADMIN_USERNAME
-        or login_request.password != settings.ADMIN_PASSWORD
-    ):
+    user_ok = hmac.compare_digest(login_request.username.encode(), settings.ADMIN_USERNAME.encode())
+    pass_ok = hmac.compare_digest(login_request.password.encode(), settings.ADMIN_PASSWORD.encode())
+    if not (user_ok and pass_ok):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid admin credentials"
@@ -620,11 +622,12 @@ async def register_with_google(
 
     # If there's already a pending request for this identity/email, return pending
     stmt = select(RegistrationRequest).where(
-        (RegistrationRequest.google_sub == google_sub) | (RegistrationRequest.email == email)
-    )
+        (RegistrationRequest.google_sub == google_sub) | (RegistrationRequest.email == email),
+        RegistrationRequest.status == RegistrationStatus.PENDING,
+    ).limit(1)
     res = await db.execute(stmt)
-    existing_req = res.scalar_one_or_none()
-    if existing_req and existing_req.status == RegistrationStatus.PENDING:
+    existing_req = res.scalars().first()
+    if existing_req:
         return {
             "pending": True,
             "message": "Registration already submitted and awaiting admin approval.",
@@ -801,11 +804,12 @@ async def login_with_google(
     if not user:
         # Check for pending registration
         stmt = select(RegistrationRequest).where(
-            RegistrationRequest.google_sub == google_sub
-        )
+            RegistrationRequest.google_sub == google_sub,
+            RegistrationRequest.status == RegistrationStatus.PENDING,
+        ).limit(1)
         res = await db.execute(stmt)
-        reg = res.scalar_one_or_none()
-        if reg and reg.status == RegistrationStatus.PENDING:
+        reg = res.scalars().first()
+        if reg:
             return {
                 "pending": True,
                 "message": "Your registration is awaiting admin approval.",

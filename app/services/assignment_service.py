@@ -1,8 +1,10 @@
 import logging
 import json
+from collections import defaultdict
 from app.repositories.assignment_repository import AssignmentRepository
 from app.db.models.scheduling.assignment import Assignment
-from app.schemas.assignment import AssignmentCreate
+from app.schemas.assignment import AssignmentCreate, AssignmentDetails, MicroserviceAssignment
+from app.core.exceptions import ValidationError, ConflictError
 from typing import List, Dict, Any, Optional
 from uuid import UUID
 
@@ -16,6 +18,55 @@ class AssignmentService:
 
     def __init__(self, repo: AssignmentRepository):
         self.repo = repo
+
+    async def replace_schedule_assignments(
+            self, schedule_id: UUID, items: List[MicroserviceAssignment]
+    ) -> None:
+        """Replaces all lessons of a schedule (manual edits from the admin table) in one transaction."""
+        problems = await self.repo.find_missing_references(items)
+        if problems:
+            raise ValidationError("; ".join(sorted(problems)[:10]))
+
+        timeslots = await self.repo.get_timeslots({i.timeslot_id for i in items})
+        clashes = self._find_clashes(items, timeslots)
+        if clashes:
+            raise ConflictError("; ".join(clashes[:10]))
+
+        await self.repo.delete_by_schedule_id(schedule_id)
+        await self.repo.bulk_create([
+            AssignmentCreate(**i.model_dump(), schedule_id=schedule_id) for i in items
+        ])
+
+    @staticmethod
+    def _find_clashes(items: List[MicroserviceAssignment], timeslots: dict) -> List[str]:
+        # An "ALL" slot runs every week, so it overlaps the ODD and EVEN slot of the same day/pair
+        by_resource = defaultdict(list)
+        for i in items:
+            day, lesson, freq = timeslots[i.timeslot_id]
+            keys = [("teacher", i.teacher_id), ("group", (i.group_id, i.subgroup_no))]
+            if i.room_id is not None:
+                keys.append(("room", i.room_id))
+            for key in keys:
+                by_resource[(key, day, lesson)].append(freq)
+        clashes = []
+        for ((kind, ident), day, lesson), freqs in by_resource.items():
+            all_count = freqs.count("ALL")
+            if all_count > 1 or (all_count and len(freqs) > 1) or freqs.count("ODD") > 1 or freqs.count("EVEN") > 1:
+                who = ident[0] if kind == "group" else ident
+                clashes.append(f"{kind} {who} has overlapping lessons on day {day}, pair {lesson}")
+        return clashes
+
+    async def get_schedule_details(self, schedule_id: UUID) -> List[AssignmentDetails]:
+        rows = await self.repo.find_by_schedule_id_with_names(schedule_id)
+        details = []
+        for assignment, last, first, patronymic, group_name, course_name, room_name in rows:
+            item = AssignmentDetails.model_validate(assignment)
+            item.teacher_name = " ".join(p for p in (last, first, patronymic) if p)
+            item.group_name = group_name
+            item.course_name = course_name
+            item.room_name = room_name
+            details.append(item)
+        return details
 
     async def create_assignments(
             self, schedule_id: UUID, assignments_data: List[Dict[str, Any]]

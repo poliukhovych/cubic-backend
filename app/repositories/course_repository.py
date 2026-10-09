@@ -29,6 +29,10 @@ class CourseRepository:
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def find_by_code(self, code: str) -> Optional[Course]:
+        result = await self._session.execute(select(Course).where(Course.code == code))
+        return result.scalar_one_or_none()
+
     async def find_by_teacher_id(self, teacher_id: UUID) -> List[Course]:
         stmt = (
             select(Course)
@@ -100,8 +104,46 @@ class CourseRepository:
         stmt = select(TeacherCourse.teacher_id).where(TeacherCourse.course_id == course_id)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_relation_ids_for_courses(
+        self, course_ids: List[UUID]
+    ) -> tuple[dict[UUID, List[UUID]], dict[UUID, List[UUID]]]:
+        """Group and teacher IDs for many courses in two queries: ({course_id: group_ids}, {course_id: teacher_ids})."""
+        group_ids: dict[UUID, List[UUID]] = {cid: [] for cid in course_ids}
+        teacher_ids: dict[UUID, List[UUID]] = {cid: [] for cid in course_ids}
+        if not course_ids:
+            return group_ids, teacher_ids
+        rows = await self._session.execute(
+            select(GroupCourse.course_id, GroupCourse.group_id).where(GroupCourse.course_id.in_(course_ids))
+        )
+        for cid, gid in rows:
+            group_ids[cid].append(gid)
+        rows = await self._session.execute(
+            select(TeacherCourse.course_id, TeacherCourse.teacher_id).where(TeacherCourse.course_id.in_(course_ids))
+        )
+        for cid, tid in rows:
+            teacher_ids[cid].append(tid)
+        return group_ids, teacher_ids
+
+    async def get_count_per_week_for_courses(self, course_ids: List[UUID]) -> dict[UUID, int]:
+        """Lessons per week by course, from its group links (1 for a course without groups)."""
+        counts: dict[UUID, int] = {cid: 1 for cid in course_ids}
+        if course_ids:
+            rows = await self._session.execute(
+                select(GroupCourse.course_id, func.max(GroupCourse.count_per_week))
+                .where(GroupCourse.course_id.in_(course_ids))
+                .group_by(GroupCourse.course_id)
+            )
+            counts.update({cid: n for cid, n in rows})
+        return counts
+
+    async def set_count_per_week(self, course_id: UUID, count_per_week: int):
+        await self._session.execute(
+            update(GroupCourse).where(GroupCourse.course_id == course_id).values(count_per_week=count_per_week)
+        )
+        await self._session.flush()
     
-    async def create_group_course_links(self, course_id: UUID, group_ids: List[UUID]):
+    async def create_group_course_links(self, course_id: UUID, group_ids: List[UUID], count_per_week: int = 1):
         """Create GroupCourse links for a course."""
         # Ensure course_id is a UUID object
         if isinstance(course_id, str):
@@ -120,7 +162,7 @@ class CourseRepository:
             # Convert to UUID if it's a string
             if isinstance(group_id, str):
                 group_id = UUID(group_id)
-            links_to_add.append(GroupCourse(group_id=group_id, course_id=course_id))
+            links_to_add.append(GroupCourse(group_id=group_id, course_id=course_id, count_per_week=count_per_week))
         
         # Add all links at once
         self._session.add_all(links_to_add)

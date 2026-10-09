@@ -16,6 +16,7 @@ class MicroserviceAssignment(BaseModel):
     room_id: Optional[uuid.UUID] = Field(None, alias="roomId", description="Room ID (null for remote)")
     # PostgreSQL enum expects lowercase: 'lec', 'prac', 'lab'
     course_type: Literal["lec", "prac", "lab"] = Field(..., alias="courseType", description="Type of class (lec, prac, lab)")
+    pinned: bool = Field(False, description="Locked by the admin; reoptimization keeps it in place")
     
     model_config = ConfigDict(populate_by_name=True)
 
@@ -31,3 +32,10 @@ class AssignmentResponse(AssignmentCreate):
     room_name: Optional[str] = Field(None, alias="roomName", description="Room name (for convenience, matches roomId)")
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class AssignmentDetails(AssignmentResponse):
+    """Assignment with display names for rendering a schedule."""
+    teacher_name: Optional[str] = Field(None, alias="teacherName")
+    group_name: Optional[str] = Field(None, alias="groupName")
+    course_name: Optional[str] = Field(None, alias="courseName")

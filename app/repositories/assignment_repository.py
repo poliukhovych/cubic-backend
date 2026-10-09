@@ -5,6 +5,11 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.scheduling.assignment import Assignment
+from app.db.models.people.teacher import Teacher
+from app.db.models.catalog.group import Group
+from app.db.models.catalog.course import Course
+from app.db.models.catalog.room import Room
+from app.db.models.scheduling.timeslot import Timeslot
 from app.schemas.assignment import AssignmentCreate
 from app.utils.unset import UNSET
 
@@ -36,6 +41,28 @@ class AssignmentRepository:
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def find_by_schedule_id_with_names(self, schedule_id: UUID):
+        """Assignments of a schedule joined with teacher/group/course/room names."""
+        stmt = (
+            select(
+                Assignment,
+                Teacher.last_name,
+                Teacher.first_name,
+                Teacher.patronymic,
+                Group.name,
+                Course.name,
+                Room.name,
+            )
+            .join(Teacher, Teacher.teacher_id == Assignment.teacher_id)
+            .join(Group, Group.group_id == Assignment.group_id)
+            .join(Course, Course.course_id == Assignment.course_id)
+            .outerjoin(Room, Room.room_id == Assignment.room_id)
+            .where(Assignment.schedule_id == schedule_id)
+            .order_by(Assignment.timeslot_id)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.all())
 
     async def find_by_schedule_and_group(
             self,
@@ -198,6 +225,33 @@ class AssignmentRepository:
         result = await self._session.execute(stmt)
         deleted_ids = list(result.scalars().all())
         return len(deleted_ids)
+
+    async def find_missing_references(self, items) -> List[str]:
+        """Returns human-readable problems for course/teacher/group/room/timeslot ids that don't exist."""
+        checks = (
+            ("course", Course.course_id, {i.course_id for i in items}),
+            ("teacher", Teacher.teacher_id, {i.teacher_id for i in items}),
+            ("group", Group.group_id, {i.group_id for i in items}),
+            ("room", Room.room_id, {i.room_id for i in items if i.room_id is not None}),
+            ("timeslot", Timeslot.timeslot_id, {i.timeslot_id for i in items}),
+        )
+        problems = []
+        for label, column, ids in checks:
+            if not ids:
+                continue
+            found = set((await self._session.execute(select(column).where(column.in_(ids)))).scalars())
+            problems.extend(f"{label} {missing} not found" for missing in ids - found)
+        return problems
+
+    async def get_timeslots(self, timeslot_ids) -> dict:
+        """timeslot_id -> (day, lesson_id, frequency value)"""
+        if not timeslot_ids:
+            return {}
+        rows = await self._session.execute(
+            select(Timeslot.timeslot_id, Timeslot.day, Timeslot.lesson_id, Timeslot.frequency)
+            .where(Timeslot.timeslot_id.in_(timeslot_ids))
+        )
+        return {tid: (day, lesson, getattr(freq, "value", freq)) for tid, day, lesson, freq in rows}
 
     async def exists(self, assignment_id: UUID) -> bool:
         """Checks if an assignment exists by its ID."""

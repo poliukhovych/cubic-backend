@@ -5,6 +5,8 @@ from sqlalchemy import select, delete, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.people.teacher import Teacher
+from app.db.models.joins.teacher_course import TeacherCourse
+from app.db.models.scheduling.assignment import Assignment
 from app.utils.unset import UNSET
 
 
@@ -83,7 +85,15 @@ class TeacherRepository:
             await self._session.refresh(teacher)
         return teacher
 
+    async def has_assignments(self, teacher_id: uuid.UUID) -> bool:
+        stmt = select(Assignment.assignment_id).where(Assignment.teacher_id == teacher_id).limit(1)
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none() is not None
+
     async def delete(self, teacher_id: uuid.UUID) -> bool:
+        await self._session.execute(
+            delete(TeacherCourse).where(TeacherCourse.teacher_id == teacher_id)
+        )
         stmt = delete(Teacher).where(Teacher.teacher_id == teacher_id).returning(Teacher.teacher_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None

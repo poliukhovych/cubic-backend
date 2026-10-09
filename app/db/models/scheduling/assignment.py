@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import SmallInteger, CheckConstraint, UniqueConstraint, Index, ForeignKey, Enum
+from sqlalchemy import SmallInteger, Boolean, CheckConstraint, UniqueConstraint, Index, ForeignKey, Enum, text
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.models.base import Base
 import uuid
@@ -54,3 +54,5 @@ class Assignment(Base):
     )
 
     course_type: Mapped[str] = mapped_column(CourseTypeEnum, nullable=False)  # 'lec' | 'prac' | 'lab'
+    # Admin-locked lesson: reoptimization keeps it in place
+    pinned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))

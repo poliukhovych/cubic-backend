@@ -5,6 +5,7 @@ from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.scheduling.schedule import Schedule
+from app.db.models.scheduling.assignment import Assignment
 from app.utils.unset import UNSET
 
 
@@ -57,6 +58,7 @@ class ScheduleRepository:
         return updated_schedule
 
     async def delete(self, schedule_id: UUID) -> bool:
+        await self._session.execute(delete(Assignment).where(Assignment.schedule_id == schedule_id))
         stmt = delete(Schedule).where(Schedule.schedule_id == schedule_id).returning(Schedule.schedule_id)
         result = await self._session.execute(stmt)
         deleted_id = result.scalar_one_or_none()
@@ -72,3 +74,20 @@ class ScheduleRepository:
         stmt = select(Schedule).order_by(Schedule.created_at.desc()).limit(1)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def find_active(self) -> Optional[Schedule]:
+        result = await self._session.execute(select(Schedule).where(Schedule.is_active))
+        return result.scalar_one_or_none()
+
+    async def set_active(self, schedule_id: UUID) -> Optional[Schedule]:
+        # Two statements: the partial unique index forbids two active rows even mid-UPDATE
+        await self._session.execute(
+            update(Schedule).where(Schedule.is_active, Schedule.schedule_id != schedule_id).values(is_active=False)
+        )
+        await self._session.execute(
+            update(Schedule).where(Schedule.schedule_id == schedule_id).values(is_active=True)
+        )
+        schedule = await self.find_by_id(schedule_id)
+        if schedule:
+            await self._session.refresh(schedule)
+        return schedule

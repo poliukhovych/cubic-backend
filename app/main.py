@@ -1,7 +1,10 @@
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from app.api import health, groups, teachers, courses, auth, users, students, rooms, timeslots
 from app.db.models.base import Base
@@ -28,6 +31,25 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     async with engine.begin() as conn:
         await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "citext";'))
         await conn.run_sync(Base.metadata.create_all)
+        # create_all doesn't alter existing tables, so add is_active to pre-existing DBs here
+        await conn.execute(text(
+            "ALTER TABLE schedules ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT false"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE assignments ADD COLUMN IF NOT EXISTS pinned boolean NOT NULL DEFAULT false"
+        ))
+        await conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_schedules_single_active ON schedules (is_active) WHERE is_active"
+        ))
+        await conn.execute(text("""
+            UPDATE schedules SET is_active = true
+            WHERE schedule_id = (
+                SELECT s.schedule_id FROM schedules s
+                WHERE EXISTS (SELECT 1 FROM assignments a WHERE a.schedule_id = s.schedule_id)
+                ORDER BY s.created_at DESC LIMIT 1
+            )
+            AND NOT EXISTS (SELECT 1 FROM schedules WHERE is_active)
+        """))
 
     # Initialize schedule data
     try:
@@ -44,6 +66,13 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+
+# FastAPI's default 422 echoes the request body back ("input"), passwords included
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    errors = [{k: v for k, v in e.items() if k in ("type", "loc", "msg")} for e in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": jsonable_encoder(errors)})
 
 # Add middleware in correct order (outermost first)
 # Error handling middleware should be outermost to catch all exceptions
