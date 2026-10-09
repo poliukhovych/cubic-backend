@@ -1,9 +1,10 @@
 import httpx
 import os
 import asyncio
+import collections
 import json
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 # Services for 'catalog' data
 from .group_service import GroupService
@@ -28,7 +29,10 @@ from .assignment_service import AssignmentService
 
 # Import response schemas
 from app.schemas.assignment import AssignmentResponse
-from app.core.exceptions import ValidationError
+from app.core.exceptions import ValidationError, ExternalServiceError
+
+SOLVER_MAX_WAIT_SEC = 600
+SOLVER_MAX_POLL_ERRORS = 10
 
 SCHEDULER_URL = os.getenv("SCHEDULER_URL", "http://localhost:8000")
 
@@ -478,15 +482,81 @@ class ScheduleGenerationService:
         
         return converted
 
+    async def _pinned_to_solver_base(
+            self, pinned: List[Any], instance_data: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Pinned DB lessons -> solver `base`. Refuses (422) pins the solver could never keep, with readable reasons."""
+        ts_names = {v: k for k, v in (await self.timeslot_service.get_string_to_id_map()).items()}
+        course_by_group = {}
+        for c in instance_data["courses"]:
+            for gid in c["groupIds"]:
+                course_by_group[(c["id"].split("_")[0], gid)] = c
+        teachers = {t["id"]: t for t in instance_data["teachers"]}
+        groups = {g["id"]: g for g in instance_data["groups"]}
+        rooms = {r["id"]: r for r in instance_data["rooms"]}
+        week_for = {"weekly": "all", "odd": "odd", "even": "even"}
+
+        base, problems, seen = [], [], set()
+        for a in pinned:
+            ts = ts_names.get(a.timeslot_id)
+            group_name = groups.get(str(a.group_id), {}).get("name", str(a.group_id))
+            course = course_by_group.get((str(a.course_id), str(a.group_id)))
+            where = f"{group_name}, {ts}"
+            if course is None or ts is None:
+                problems.append(f"{where}: курс більше не прив'язаний до групи або слот не існує")
+                continue
+            where = f"{group_name}, {course['name']}, {ts}"
+            room = rooms.get(str(a.room_id)) if a.room_id else None
+            day, week, n = ts.split(".")
+            available = set(teachers.get(course["teacherId"], {}).get("available", []))
+            if room is None:
+                problems.append(f"{where}: закріплена пара має мати аудиторію")
+            elif str(a.teacher_id) != course["teacherId"]:
+                problems.append(f"{where}: викладач відрізняється від викладача курсу")
+            elif week != week_for.get(course["frequency"], "all"):
+                problems.append(f"{where}: слот не відповідає частоті курсу ({course['frequency']})")
+            elif ts not in available and f"{day}.all.{n}" not in available:
+                problems.append(f"{where}: викладач недоступний у цей час")
+            elif any(ts in groups.get(g, {}).get("unavailable", []) or f"{day}.all.{n}" in groups.get(g, {}).get("unavailable", [])
+                     for g in course["groupIds"]):
+                problems.append(f"{where}: група недоступна у цей час")
+            elif room["capacity"] < (students := sum(groups[g]["size"] for g in course["groupIds"] if g in groups)):
+                stream = f"потік із {len(course['groupIds'])} груп, " if len(course["groupIds"]) > 1 else ""
+                biggest = max(r["capacity"] for r in rooms.values())
+                problems.append(
+                    f"{where}: аудиторія {room['name']} замала ({stream}{students} студентів, місць {room['capacity']}"
+                    + (f"; найбільша аудиторія — {biggest}, тож курс не вміститься ніде" if biggest < students else "")
+                    + ")"
+                )
+            else:
+                key = (course["id"], room["id"], ts)
+                if key not in seen:  # a stream course is pinned once for all its groups
+                    seen.add(key)
+                    base.append({"courseId": course["id"], "teacherId": course["teacherId"],
+                                 "roomId": room["id"], "timeslot": ts, "groupIds": course["groupIds"]})
+        courses = {c["id"]: c for c in instance_data["courses"]}
+        for course_id, count in collections.Counter(b["courseId"] for b in base).items():
+            course = courses[course_id]
+            if count > course["countPerWeek"]:
+                names = ", ".join(groups[g]["name"] for g in course["groupIds"] if g in groups)
+                problems.append(
+                    f"{names}, {course['name']}: закріплено {count} пар, а в курсі {course['countPerWeek']} на тиждень"
+                )
+        if problems:
+            raise ValidationError("Закріплені пари не можна зберегти: " + "; ".join(problems[:5]))
+        return base
+
     async def generate_and_save_schedule(
             self,
             policy: Dict[str, Any],
             params: Dict[str, Any],
-            schedule_label: str
+            schedule_label: str,
+            pinned: Optional[List[Any]] = None,
     ) -> List[AssignmentResponse]:
         """
         Full process: format data, call microservice, poll, save result.
         'policy' and 'params' are provided from the frontend request.
+        With `pinned` lessons it reoptimizes: those stay in place, everything else is re-solved.
         """
         logger.info("=" * 80)
         logger.info("=== ПОЧАТОК ГЕНЕРАЦІЇ РОЗКЛАДУ ===")
@@ -506,6 +576,13 @@ class ScheduleGenerationService:
             },
             "params": params
         }
+        endpoint = "/v1/solve"
+        pinned_keys = set()
+        if pinned:
+            payload["base"] = await self._pinned_to_solver_base(pinned, instance_data)
+            payload["masks"] = []
+            endpoint = "/v1/reoptimize"
+            pinned_keys = {(str(a.course_id), str(a.group_id), a.timeslot_id) for a in pinned}
 
         logger.info("\n" + "=" * 80)
         logger.info("=== ВІДПРАВКА ДАНИХ НА МІКРОСЕРВІС ===")
@@ -551,7 +628,7 @@ class ScheduleGenerationService:
             try:
                 logger.info("\n Відправка запиту на мікросервіс...")
                 response = await client.post(
-                    f"{self.scheduler_url}/v1/solve", json=payload, timeout=20.0
+                    f"{self.scheduler_url}{endpoint}", json=payload, timeout=20.0
                 )
                 response.raise_for_status()
                 job_id = response.json()["jobId"]
@@ -566,7 +643,15 @@ class ScheduleGenerationService:
 
             logger.info(f"\n⏳ Очікування виконання завдання {job_id}...")
             poll_count = 0
+            poll_errors = 0
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + SOLVER_MAX_WAIT_SEC
             while True:
+                if loop.time() > deadline:
+                    raise ExternalServiceError(
+                        f"Солвер не повернув результат за {SOLVER_MAX_WAIT_SEC} с (job {job_id}).",
+                        service_name="scheduler",
+                    )
                 await asyncio.sleep(3)
                 poll_count += 1
                 logger.debug(f"   Спроба #{poll_count}: перевірка статусу завдання...")
@@ -575,6 +660,7 @@ class ScheduleGenerationService:
                     result_response = await client.get(
                         f"{self.scheduler_url}/v1/jobs/{job_id}/result", timeout=10.0
                     )
+                    poll_errors = 0
 
                     if result_response.status_code == 200:
                         logger.info(f"\nЗавдання виконано після {poll_count} спроб!")
@@ -633,6 +719,11 @@ class ScheduleGenerationService:
                                 "Не вдалося скласти розклад: обмеження несумісні (INFEASIBLE). "
                                 "Попередній розклад залишено без змін."
                             )
+                        if status == "timeout":
+                            raise ValidationError(
+                                f"Солвер не встиг знайти розклад за {params.get('timeLimitSec')} с. "
+                                "Збільште ліміт часу. Попередній розклад залишено без змін."
+                            )
                         if not assignments_data:
                             raise ValidationError(
                                 "Солвер повернув 0 призначень. Попередній розклад залишено без змін."
@@ -650,6 +741,8 @@ class ScheduleGenerationService:
                             logger.info(f"\nКонвертація та збереження {len(assignments_data)} призначень...")
                             
                             converted_assignments = await self._convert_assignments_from_microservice(assignments_data)
+                            for a in converted_assignments:
+                                a["pinned"] = (a["courseId"], a["groupId"], a["timeslotId"]) in pinned_keys
                             logger.info(f" Конвертовано {len(converted_assignments)} призначень для збереження")
                             
                             saved_assignments = await self.assignment_service.create_assignments(
@@ -693,13 +786,31 @@ class ScheduleGenerationService:
                         logger.info(f"Сформовано {len(assignment_responses)} відповідей з roomName")
                         return assignment_responses
 
+                    elif result_response.status_code == 202:
+                        continue
+
                     elif result_response.status_code == 500:
-                        error_details = result_response.json().get("detail", "Unknown error")
+                        try:
+                            error_details = result_response.json().get("detail", "Unknown error")
+                        except ValueError:
+                            error_details = result_response.text or "Unknown error"
                         logger.error(f"\n Завдання {job_id} завершилось з помилкою:")
                         logger.error(f"   {error_details}")
                         raise Exception(f"Scheduling job {job_id} failed: {error_details}")
 
+                    else:
+                        raise ExternalServiceError(
+                            f"Солвер відповів {result_response.status_code} для job {job_id}.",
+                            service_name="scheduler",
+                        )
+
                 except httpx.RequestError as e:
+                    poll_errors += 1
+                    if poll_errors >= SOLVER_MAX_POLL_ERRORS:
+                        raise ExternalServiceError(
+                            f"Солвер недоступний: {poll_errors} помилок підряд (job {job_id}).",
+                            service_name="scheduler",
+                        )
                     logger.warning(f" Помилка при перевірці статусу (спроба #{poll_count}): {e}")
                     logger.warning("   Повторна спроба через 3 секунди...")
                     continue

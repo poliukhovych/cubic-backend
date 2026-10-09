@@ -3,9 +3,10 @@ from typing import List
 from uuid import UUID
 from app.services.course_service import CourseService
 from app.core.deps import get_course_service
+from app.core.security import get_current_user, get_current_admin
 from app.schemas.course import CourseCreate, CourseUpdate, CourseResponse, CourseListResponse
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 @router.get("/", response_model=CourseListResponse)
@@ -35,7 +36,7 @@ async def get_courses_by_teacher_id(
     return courses
 
 
-@router.post("/", response_model=CourseResponse, status_code=201)
+@router.post("/", response_model=CourseResponse, status_code=201, dependencies=[Depends(get_current_admin)])
 async def create_course(
     course_data: CourseCreate,
     course_service: CourseService = Depends(get_course_service)
@@ -47,7 +48,7 @@ async def create_course(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put("/{course_id}", response_model=CourseResponse)
+@router.put("/{course_id}", response_model=CourseResponse, dependencies=[Depends(get_current_admin)])
 async def update_course(
     course_id: UUID,
     course_data: CourseUpdate,
@@ -63,7 +64,7 @@ async def update_course(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{course_id}")
+@router.delete("/{course_id}", dependencies=[Depends(get_current_admin)])
 async def delete_course(
     course_id: UUID,
     course_service: CourseService = Depends(get_course_service)

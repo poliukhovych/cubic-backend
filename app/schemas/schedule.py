@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Union
 from pydantic import BaseModel, Field
 
-from app.schemas.assignment import AssignmentResponse, AssignmentDetails
+from app.schemas.assignment import AssignmentResponse, AssignmentDetails, MicroserviceAssignment
 from app.utils.unset import UNSET 
 
 
@@ -43,6 +43,11 @@ class ScheduleListResponse(BaseModel):
 class ScheduleDetailsResponse(BaseModel):
     schedule: ScheduleResponse
     assignments: List[AssignmentDetails]
+
+
+class ReplaceAssignmentsRequest(BaseModel):
+    """Full new list of lessons for a schedule (camelCase, same fields as the solver output)."""
+    assignments: List[MicroserviceAssignment]
 
 
 class ScheduleGenerationResponse(BaseModel):

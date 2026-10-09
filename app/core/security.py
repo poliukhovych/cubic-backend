@@ -83,15 +83,15 @@ def decode_access_token(token: str) -> TokenPayload:
             exp=exp
         )
     
-    except JWTError as e:
+    except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Could not validate credentials: {str(e)}"
+            detail="Could not validate credentials"
         )
-    except ValueError as e:
+    except ValueError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid token format: {str(e)}"
+            detail="Could not validate credentials"
         )
 
 

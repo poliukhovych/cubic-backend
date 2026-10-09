@@ -12,29 +12,28 @@ class CourseService:
     def __init__(self, repo: CourseRepository):
         self.repo = repo
 
+    async def _to_responses(self, courses) -> List[CourseResponse]:
+        group_ids, teacher_ids = await self.repo.get_relation_ids_for_courses(
+            [c.course_id for c in courses]
+        )
+        counts = await self.repo.get_count_per_week_for_courses([c.course_id for c in courses])
+        return [
+            CourseResponse.model_validate({
+                "course_id": c.course_id,
+                "name": c.name,
+                "duration": c.duration,
+                "code": c.code,
+                "group_ids": group_ids[c.course_id],
+                "teacher_ids": teacher_ids[c.course_id],
+                "count_per_week": counts[c.course_id],
+            })
+            for c in courses
+        ]
+
     async def get_all_courses(self) -> CourseListResponse:
         courses = await self.repo.find_all()
         total = await self.repo.count()
-        
-        # Build course responses with relationships
-        course_responses = []
-        counts = await self.repo.get_count_per_week_for_courses([c.course_id for c in courses])
-        for course in courses:
-            group_ids = await self.repo.get_group_ids_for_course(course.course_id)
-            teacher_ids = await self.repo.get_teacher_ids_for_course(course.course_id)
-            
-            course_dict = {
-                "course_id": course.course_id,
-                "name": course.name,
-                "duration": course.duration,
-                "code": course.code,
-                "group_ids": group_ids,
-                "teacher_ids": teacher_ids,
-                "count_per_week": counts[course.course_id],
-            }
-            course_responses.append(CourseResponse.model_validate(course_dict))
-        
-        return CourseListResponse(courses=course_responses, total=total)
+        return CourseListResponse(courses=await self._to_responses(courses), total=total)
 
     async def get_course_by_id(self, course_id: UUID) -> Optional[CourseResponse]:
         course = await self.repo.find_by_id(course_id)
@@ -56,25 +55,7 @@ class CourseService:
 
     async def get_courses_by_teacher_id(self, teacher_id: UUID) -> List[CourseResponse]:
         courses = await self.repo.find_by_teacher_id(teacher_id)
-        
-        course_responses = []
-        counts = await self.repo.get_count_per_week_for_courses([c.course_id for c in courses])
-        for course in courses:
-            group_ids = await self.repo.get_group_ids_for_course(course.course_id)
-            teacher_ids = await self.repo.get_teacher_ids_for_course(course.course_id)
-            
-            course_dict = {
-                "course_id": course.course_id,
-                "name": course.name,
-                "duration": course.duration,
-                "code": course.code,
-                "group_ids": group_ids,
-                "teacher_ids": teacher_ids,
-                "count_per_week": counts[course.course_id],
-            }
-            course_responses.append(CourseResponse.model_validate(course_dict))
-        
-        return course_responses
+        return await self._to_responses(courses)
 
     async def _clean_code(self, code, course_id: Optional[UUID] = None):
         """Blank code -> NULL (the column is unique, so "" would clash); duplicate code -> ValueError (400)."""
