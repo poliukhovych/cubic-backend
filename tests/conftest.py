@@ -1,3 +1,7 @@
+import os
+
+os.environ.setdefault("JWT_SECRET_KEY", "test-only-jwt-secret-" + "x" * 32)
+
 import pytest
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker

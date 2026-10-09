@@ -1,4 +1,5 @@
 import os
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from typing import Optional, List
 
@@ -49,6 +50,13 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> List[str]:
         return [o.strip() for o in (self.CORS_ALLOW_ORIGINS or "").split(",") if o.strip()]
+
+    @field_validator("JWT_SECRET_KEY")
+    @classmethod
+    def _reject_weak_jwt_secret(cls, v: str) -> str:
+        if len(v) < 32 or v.startswith(("your-secret-key", "change-me")):
+            raise ValueError("JWT_SECRET_KEY must be set to a random string of at least 32 chars (openssl rand -hex 32)")
+        return v
 
 
 settings = Settings()

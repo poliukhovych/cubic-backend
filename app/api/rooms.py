@@ -2,9 +2,10 @@ from fastapi import APIRouter, HTTPException, Depends
 from uuid import UUID
 from app.services.room_service import RoomService
 from app.core.deps import get_room_service
+from app.core.security import get_current_user
 from app.schemas.room import RoomResponse, RoomListResponse
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 @router.get("/", response_model=RoomListResponse)
