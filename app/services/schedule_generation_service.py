@@ -1,6 +1,7 @@
 import httpx
 import os
 import asyncio
+import collections
 import json
 import logging
 from typing import List, Dict, Any, Optional
@@ -530,6 +531,14 @@ class ScheduleGenerationService:
                     seen.add(key)
                     base.append({"courseId": course["id"], "teacherId": course["teacherId"],
                                  "roomId": room["id"], "timeslot": ts, "groupIds": course["groupIds"]})
+        courses = {c["id"]: c for c in instance_data["courses"]}
+        for course_id, count in collections.Counter(b["courseId"] for b in base).items():
+            course = courses[course_id]
+            if count > course["countPerWeek"]:
+                names = ", ".join(groups[g]["name"] for g in course["groupIds"] if g in groups)
+                problems.append(
+                    f"{names}, {course['name']}: закріплено {count} пар, а в курсі {course['countPerWeek']} на тиждень"
+                )
         if problems:
             raise ValidationError("Закріплені пари не можна зберегти: " + "; ".join(problems[:5]))
         return base
