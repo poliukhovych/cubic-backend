@@ -10,6 +10,7 @@ from app.schemas.schedule import (
     ScheduleResponse,
     ScheduleListResponse,
     ScheduleDetailsResponse,
+    ReplaceAssignmentsRequest,
 )
 from app.services.schedule_generation_service import ScheduleGenerationService
 from app.services.schedule_service import ScheduleService
@@ -137,6 +138,25 @@ async def get_schedule_details(
         schedule = await service.get_schedule_by_id(schedule_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail=f"Schedule with id {schedule_id} not found")
+    return ScheduleDetailsResponse(
+        schedule=ScheduleResponse.model_validate(schedule),
+        assignments=await assignment_service.get_schedule_details(schedule_id),
+    )
+
+
+@router.put("/{schedule_id}/assignments", response_model=ScheduleDetailsResponse, dependencies=[Depends(get_current_admin)])
+async def replace_schedule_assignments(
+    schedule_id: UUID,
+    body: ReplaceAssignmentsRequest,
+    service: ScheduleService = Depends(get_schedule_service),
+    assignment_service: AssignmentService = Depends(get_assignment_service),
+):
+    """Зберігає ручні зміни розкладу: повністю замінює заняття (422 — невідомі id, 409 — накладки)."""
+    try:
+        schedule = await service.get_schedule_by_id(schedule_id)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail=f"Schedule with id {schedule_id} not found")
+    await assignment_service.replace_schedule_assignments(schedule_id, body.assignments)
     return ScheduleDetailsResponse(
         schedule=ScheduleResponse.model_validate(schedule),
         assignments=await assignment_service.get_schedule_details(schedule_id),
