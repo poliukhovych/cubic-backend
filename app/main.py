@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from app.api import health, groups, teachers, courses, auth, users, students, rooms, timeslots
+from app.core.exceptions import BaseCustomException
 from app.db.models.base import Base
 from app.db.session import engine
 from app.middleware import LoggingMiddleware, ErrorHandlingMiddleware
@@ -73,6 +74,20 @@ app = FastAPI(
 async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     errors = [{k: v for k, v in e.items() if k in ("type", "loc", "msg")} for e in exc.errors()]
     return JSONResponse(status_code=422, content={"detail": jsonable_encoder(errors)})
+
+
+@app.exception_handler(BaseCustomException)
+async def custom_exception_handler(request: Request, exc: BaseCustomException) -> JSONResponse:
+    """Keeps "detail" for existing clients and adds the id the logs are keyed on."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "request_id": getattr(request.state, "request_id", None),
+            "error_code": exc.error_code,
+        },
+        headers=exc.headers or {},
+    )
 
 # Add middleware in correct order (outermost first)
 # Error handling middleware should be outermost to catch all exceptions
