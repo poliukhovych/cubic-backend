@@ -33,6 +33,7 @@ from app.core.exceptions import ValidationError, ExternalServiceError
 
 SOLVER_MAX_WAIT_SEC = 600
 SOLVER_MAX_POLL_ERRORS = 10
+SOLVER_RETRY_AFTER_SEC = 60
 
 SCHEDULER_URL = os.getenv("SCHEDULER_URL", "http://localhost:8000")
 
@@ -636,9 +637,19 @@ class ScheduleGenerationService:
             except (httpx.RequestError, httpx.HTTPStatusError) as e:
                 logger.error(f" Помилка при створенні завдання: {e}")
                 logger.error(f"   URL: {self.scheduler_url}/v1/solve")
+                solver_status = None
                 if hasattr(e, 'response') and e.response:
-                    logger.error(f"   Response status: {e.response.status_code}")
+                    solver_status = e.response.status_code
+                    logger.error(f"   Response status: {solver_status}")
                     logger.error(f"   Response body: {e.response.text}")
+                # Unreachable solver or a solver-side 5xx is an availability problem,
+                # not a bad request: answer 503 so the caller knows to retry.
+                if solver_status is None or solver_status >= 500:
+                    raise ExternalServiceError(
+                        "Сервіс планування недоступний. Спробуйте ще раз за хвилину.",
+                        service_name="scheduler",
+                        headers={"Retry-After": str(SOLVER_RETRY_AFTER_SEC)},
+                    )
                 raise Exception(f"Failed to start scheduling job: {e}")
 
             logger.info(f"\n⏳ Очікування виконання завдання {job_id}...")
